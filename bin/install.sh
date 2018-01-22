@@ -122,6 +122,10 @@ EOF
 
 chmod +x $INSTALL_DIR/sagittarius
 
+rm $SCHEME_ENV_HOME/bin/sagittarius
+rm $SCHEME_ENV_HOME/bin/default
+rm $SCHEME_ENV_HOME/bin/host-scheme
+
 ln -s $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/sagittarius
 ln -s $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/default
 ln -s $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/host-scheme
