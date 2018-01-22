@@ -41,11 +41,13 @@
 (define (replace-symlink name)
   (define default (build-path bin-directory "default"))
   (define target (build-path bin-directory name))
-  (print default)
-  (when (file-exists? target)
-    (when (file-exists? default) (delete-file default))
-    (create-symbolic-link target default)))
-
+  (cond ((file-exists? target)
+	 (when (file-exists? default) (delete-file default))
+	 (create-symbolic-link target default)
+	 (print "Switched to " name))
+	(else
+	 (print "Implementation " name " doesn't exist"))))
+  
 (define (usage)
   (print "scheme-env switch implementation")
   (print " Swiching default implementation"))
