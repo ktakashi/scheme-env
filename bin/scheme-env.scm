@@ -53,7 +53,7 @@
 	   (lambda (m)
 	     (let-values (((s h b)
 			   (http-get (m 2) (->command-file (m 3))
-				     :secure? (string=? (m 1) "https"))))
+				     :secure (string=? (m 1) "https"))))
 	       (unless (string=? s "200")
 		 (assertion-violation 'scheme-env "command not found" command))
 	       (call-with-output-file command-file
@@ -61,7 +61,6 @@
 	       command-file)))
 	  (else
 	   (let ((local (->command-file repository)))
-	     (display local) (newline)
 	     (unless (file-exists? local)
 	       (assertion-violation 'scheme-env
 				    "command not found in local" command))
