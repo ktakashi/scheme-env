@@ -96,7 +96,7 @@
       (delete-file file)))
   (let ((work-dir (build-path* work-directory "chibi-scheme" real-version))
 	(prefix (format "PREFIX=~a" install-prefix)))
-    (delete-directory* work-dir)
+    (when (file-exists? (delete-directory* work-dir)))
     (create-directory* work-dir)
     (parameterize ((current-directory work-dir))
       (download work-dir)
