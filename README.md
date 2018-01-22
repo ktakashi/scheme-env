@@ -24,3 +24,22 @@ implementation then use the following comment
 $ scheme-env run
 ```
 
+# Installing implementations
+
+To install implementations, you can run the following command
+
+```
+$ scheme-env install implementation
+```
+Currently the followings are the supported implementation 
+
+- Chibi Scheme (chibi-scheme)
+
+# Switch implementations
+
+To swich default implementation, you can run the following command
+
+```
+$ scheme-env switch implementation
+```
+If this command isn't run, then `sagitarius` is set to default.
