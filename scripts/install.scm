@@ -107,7 +107,9 @@
 				(run "make" prefix)
 				(run "make" prefix "install")))))
 		     :recursive #f))
-    (let ((new (build-path* scheme-env-home "bin" "chibi-scheme"))
+    (let ((new (build-path* scheme-env-home "bin"
+			    (format "chibi-scheme~a"
+				    (string-append "@" real-version))))
 	  (old (build-path* install-prefix "chibi-scheme"))
 	  (bin (build-path* install-prefix "bin" "chibi-scheme"))
 	  (lib (build-path* install-prefix "lib")))
@@ -118,7 +120,7 @@
       (change-file-mode old #o775)
       (when (file-exists? new) (delete-file new))
       (create-symbolic-link old new)
-      )))
+      (print "Chibi Scheme is installed"))))
 
 (define (parse-version arg)
   (cond ((#/([^@]+)@(.+)/ arg) => (lambda (m) (values (m 1) (m 2))))
