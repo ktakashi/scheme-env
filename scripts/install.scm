@@ -101,7 +101,7 @@
   (print "  - implementation@version")
   (print " Supporting implementations")
   (print "  - chibi-scheme")
-;; (print "  - sagittarius")
+  (print "  - sagittarius")
   (exit -1))
 
 (define (main args)

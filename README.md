@@ -34,6 +34,14 @@ $ scheme-env install implementation
 Currently the followings are the supported implementation 
 
 - Chibi Scheme (chibi-scheme)
+- Sagittarius Scheme (sagittarius)
+
+You can also specify the version by adding `@` and version number.
+For example:
+
+```
+$ scheme-env install sagittarius@0.8.9
+```
 
 # Switch implementations
 
