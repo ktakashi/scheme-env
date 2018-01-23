@@ -34,41 +34,50 @@
 	(sagittarius)
 	(sagittarius regex)
 	(scheme load)
-	(rfc http))
+	(rfc http)
+	(util file))
 
 (define-constant +default-github-repository+
   "https://raw.githubusercontent.com/ktakashi/scheme-env/master/scripts")
 
 (define (invoke-command command args)
   (define repository
-    (or (getenv "SCHEME_ENV_REPOSITORY") +default-github-repository+))
+    (cond ((getenv "SCHEME_ENV_REPOSITORY") =>
+	   (lambda (r) (build-path r "scripts")))
+	  (else +default-github-repository+)))
   (define home
     (or (getenv "SCHEME_ENV_HOME")
 	(assertion-violation 'scheme-env "SCHEME_ENV_HOME is not set")))
   (define (->command-file base) (format "~a/~a.scm" base command))
-  
+
   (define (get-file command-file repository)
-    (cond ((file-exists? command-file) command-file)
-	  ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
+    (define (download m)
+      (let-values (((s h b)
+		    (http-get (m 2) (->command-file (m 3))
+			      :secure (string=? (m 1) "https"))))
+	(unless (string=? s "200")
+	  (assertion-violation 'scheme-env "command not found" command))
+	(call-with-output-file command-file
+	  (lambda (out) (put-string out b)))
+	command-file))
+    (cond ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
 	   (lambda (m)
-	     (let-values (((s h b)
-			   (http-get (m 2) (->command-file (m 3))
-				     :secure (string=? (m 1) "https"))))
-	       (unless (string=? s "200")
-		 (assertion-violation 'scheme-env "command not found" command))
-	       (call-with-output-file command-file
-		 (lambda (out) (put-string out b)))
-	       command-file)))
+	     (cond ((file-exists? command-file) command-file)
+		   (else (download m)))))
 	  (else
 	   (let ((local (->command-file repository)))
-	     (unless (file-exists? local)
-	       (assertion-violation 'scheme-env
-				    "command not found in local" command))
-	     (copy-file local command-file #f)
-	     command-file))))
-  
-  (let ((file (get-file (->command-file (build-path home "scripts"))
-			repository))
+	     (cond ((file-exists? local)
+		    (copy-file local command-file #t)
+		    command-file)
+		   ((file-exists? command-file) command-file)
+		   (else
+		    (assertion-violation 'scheme-env
+					 "command not found in local"
+					 command)))))))
+  (define local-repository (build-path home "scripts"))
+
+  (unless (file-exists? local-repository) (create-directory* local-repository))
+  (let ((file (get-file (->command-file local-repository) repository))
 	(env (environment '(only (sagittarius) import library define-library))))
     (load file env)
     (eval `(main ',args) env)))

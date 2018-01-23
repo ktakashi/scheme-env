@@ -30,9 +30,11 @@
 
 #!read-macro=sagittarius/regex
 (import (rnrs)
+	(rnrs eval)
 	(sagittarius)
 	(sagittarius regex)
 	(sagittarius process)
+	(scheme load)
 	(archive)
 	(rfc http)
 	(rfc gzip)
@@ -41,90 +43,56 @@
 	(srfi :39))
 
 (define (print . args) (for-each display args) (newline))
-(define scheme-env-home
-  (or (getenv "SCHEME_ENV_HOME")
-      (begin (print "invalid call") (exit -1))))
-(define work-directory (build-path scheme-env-home "work"))
-
-(define (call-with-safe-output-file file proc)
-  (when (file-exists? file) (delete-file file))
-  (call-with-output-file file proc))
-
-;;(define (destinator e)
-;;  (let ((name (archive-entry-name e)))
-;;    (format #t "-- Extracting: ~a~%" name)
-;;    name))
-
-;; Got an error of bar tar header checksum...
-;; (define (install-chibi-scheme version)
-;;   (define real-version (or version "master"))
-;;   (let-values (((s h b)
-;; 		(http-get "github.com"
-;; 			  (format "/ashinn/chibi-scheme/archive/~a.tar.gz"
-;; 				  real-version)
-;; 			  :receiver (http-binary-receiver)
-;; 			  :secure #t)))
-;;     (unless (string=? s "200")
-;;       (assertion-violation 'chibi-scheme "Failed to download Chibi Scheme" s h))
-;;     (let ((work-dir (build-path* work-directory "chibi-scheme" real-version))
-;; 	  (in (open-gzip-input-port (open-bytevector-input-port b))))
-;;       (create-directory* work-dir)
-;;       (parameterize ((current-directory work-dir))
-;; 	(call-with-archive-input 'tar in
-;; 	  (cut extract-all-entries <> :overwrite #t :destinator destinator))
-;; 	(process-wait (process-call "make"))
-;; 	(process-wait (process-call "make install"))))))
-
-;; so use process
-(define (install-chibi-scheme version)
-  (define real-version (or version "master"))
-  (define install-prefix
-    (build-path* scheme-env-home "implementations" "chibi-scheme" real-version))
-  (define (download dir)
-    (define file (build-path dir "chibi-scheme"))
-    (let-values (((s h file)
-		  (http-get "github.com"
-			    (format "/ashinn/chibi-scheme/archive/~a.tar.gz"
-				    real-version)
-			    :receiver (http-file-receiver file)
-			    :secure #t)))
-      (unless (string=? s "200")
-	(assertion-violation 'chibi-scheme
-			     "Failed to download Chibi Scheme" s h))
-      (print file)
-      (run "tar" "xvf" file)
-      (delete-file file)))
-  (let ((work-dir (build-path* work-directory "chibi-scheme" real-version))
-	(prefix (format "PREFIX=~a" install-prefix)))
-    (when (file-exists? work-dir) (delete-directory* work-dir))
-    (create-directory* work-dir)
-    (parameterize ((current-directory work-dir))
-      (download work-dir)
-      (path-for-each "." (lambda (path type)
-			   (case type
-			     ((directory)
-			      (parameterize ((current-directory path))
-				(run "make" prefix)
-				(run "make" prefix "install")))))
-		     :recursive #f))
-    (let ((new (build-path* scheme-env-home "bin"
-			    (format "chibi-scheme~a"
-				    (string-append "@" real-version))))
-	  (old (build-path* install-prefix "chibi-scheme"))
-	  (bin (build-path* install-prefix "bin" "chibi-scheme"))
-	  (lib (build-path* install-prefix "lib")))
-      (call-with-safe-output-file old
-        (lambda (out)
-	  (put-string out "#!/bin/sh\n")
-	  (format out "LD_LIBRARY_PATH=~a ~a \"$@\"" lib bin)))
-      (change-file-mode old #o775)
-      (when (file-exists? new) (delete-file new))
-      (create-symbolic-link old new)
-      (print "Chibi Scheme is installed"))))
-
 (define (parse-version arg)
   (cond ((#/([^@]+)@(.+)/ arg) => (lambda (m) (values (m 1) (m 2))))
 	(else (values arg #f))))
+
+(define scheme-env-home
+  (or (getenv "SCHEME_ENV_HOME")
+      (begin (print "invalid call") (exit -1))))
+
+(define-constant +default-github-repository+
+  "https://raw.githubusercontent.com/ktakashi/scheme-env/master/scripts/install")
+
+(define (invoke-installer implementation version)
+  (define repository
+    (cond ((getenv "SCHEME_ENV_REPOSITORY") =>
+	   (lambda (r) (build-path* r "scripts" "install")))
+	  (else +default-github-repository+)))
+  (define (->implementation-file base) (format "~a/~a.scm" base implementation))
+  
+  (define (get-file implementation-file repository)
+    (define (download m)
+      (let-values (((s h b)
+		    (http-get (m 2) (->implementation-file (m 3))
+			      :secure (string=? (m 1) "https"))))
+	(unless (string=? s "200")
+	  (assertion-violation 'scheme-env "implementation not found"
+			       implementation))
+	(call-with-output-file implementation-file
+	  (lambda (out) (put-string out b)))
+	implementation-file))
+    (cond ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
+	   (lambda (m)
+	     (cond ((file-exists? implementation-file) implementation-file)
+		   (else (download m)))))
+	  (else
+	   (let ((local (->implementation-file repository)))
+	     (cond ((file-exists? local)
+		    (copy-file local implementation-file #t)
+		    implementation-file)
+		   ((file-exists? implementation-file) implementation-file)
+		   (else
+		    (assertion-violation 'scheme-env
+					 "implementation not found in local"
+					 implementation)))))))
+  (define local-repository (build-path* scheme-env-home "scripts" "install"))
+  
+  (unless (file-exists? local-repository) (create-directory* local-repository))
+  (let ((file (get-file (->implementation-file local-repository) repository))
+	(env (environment '(only (sagittarius) import library define-library))))
+    (load file env)
+    (eval `(install ,version) env)))
 
 (define (usage)
   (print "scheme-env install implementation ...")
@@ -140,7 +108,5 @@
   (when (null? args) (usage))
   (for-each (lambda (implementation)
 	      (let-values (((impl version) (parse-version implementation)))
-		(case (string->symbol impl)
-		  ((chibi-scheme) (install-chibi-scheme version))
-		  (else (print "Not supported: " impl)))))
+		(invoke-installer impl version)))
 	    args))
