@@ -28,13 +28,16 @@
 ;;;   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;;;  
 
+#!nounbound
 (import (rnrs)
 	(sagittarius)
 	(sagittarius process)
 	(archive)
 	(rfc http)
 	(rfc gzip)
+	(archive)
 	(util file)
+	(srfi :26)
 	(srfi :39))
 
 (define (print . args) (for-each display args) (newline))
@@ -47,51 +50,27 @@
   (when (file-exists? file) (delete-file file))
   (call-with-output-file file proc))
 
-;;(define (destinator e)
-;;  (let ((name (archive-entry-name e)))
-;;    (format #t "-- Extracting: ~a~%" name)
-;;    name))
-
-;; Got an error of bar tar header checksum...
-;; (define (install-chibi-scheme version)
-;;   (define real-version (or version "master"))
-;;   (let-values (((s h b)
-;; 		(http-get "github.com"
-;; 			  (format "/ashinn/chibi-scheme/archive/~a.tar.gz"
-;; 				  real-version)
-;; 			  :receiver (http-binary-receiver)
-;; 			  :secure #t)))
-;;     (unless (string=? s "200")
-;;       (assertion-violation 'chibi-scheme "Failed to download Chibi Scheme" s h))
-;;     (let ((work-dir (build-path* work-directory "chibi-scheme" real-version))
-;; 	  (in (open-gzip-input-port (open-bytevector-input-port b))))
-;;       (create-directory* work-dir)
-;;       (parameterize ((current-directory work-dir))
-;; 	(call-with-archive-input 'tar in
-;; 	  (cut extract-all-entries <> :overwrite #t :destinator destinator))
-;; 	(process-wait (process-call "make"))
-;; 	(process-wait (process-call "make install"))))))
-
-;; so use process
+(define (destinator e)
+  (let ((name (archive-entry-name e)))
+    (format #t "-- Extracting: ~a~%" name)
+    name))
 
 (define (install version)
   (define real-version (or version "master"))
   (define install-prefix
     (build-path* scheme-env-home "implementations" "chibi-scheme" real-version))
   (define (download dir)
-    (define file (build-path dir "chibi-scheme"))
-    (let-values (((s h file)
+    (let-values (((s h b)
 		  (http-get "github.com"
-			    (format "/ashinn/chibi-scheme/archive/~a.tar.gz"
+			    (format "/ashinn/chibi-scheme/archive/~a.zip"
 				    real-version)
-			    :receiver (http-file-receiver file)
+			    :receiver (http-binary-receiver)
 			    :secure #t)))
       (unless (string=? s "200")
 	(assertion-violation 'chibi-scheme
 			     "Failed to download Chibi Scheme" s h))
-      (print file)
-      (run "tar" "xvf" file)
-      (delete-file file)))
+      (call-with-archive-input 'zip (open-bytevector-input-port b)
+	(cut extract-all-entries <> :overwrite #t :destinator destinator))))
   (let ((work-dir (build-path* work-directory "chibi-scheme" real-version))
 	(prefix (format "PREFIX=~a" install-prefix)))
     (when (file-exists? work-dir) (delete-directory* work-dir))
