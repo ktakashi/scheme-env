@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # installing host Scheme implementation (latest Sagittarius) and scheme env
+SCHEME_ENV_INSTALL_PACKAGE=${SCHEME_ENV_INSTALL_PACKAGE:-"yes"}
+
+
 SCHEME_ENV_HOME=~/.scheme-env
 mkdir -p $SCHEME_ENV_HOME/bin
 mkdir -p $SCHEME_ENV_HOME/scripts
@@ -82,10 +85,13 @@ while getopts "l:" o; do
 done
 shift $((OPTIND-1))
 
-init_commands
-
-# TODO absorb the different names
-install_package gcc g++ make curl cmake libgc-dev libffi-dev zlib1g-dev
+case $SCHEME_ENV_INSTALL_PACKAGE in
+    1|yes)
+	init_commands
+	# TODO absorb the different names
+	install_package gcc g++ make curl cmake libgc-dev libffi-dev zlib1g-dev
+	;;
+esac
 
 REPOSITORY_URL=https://bitbucket.org/ktakashi/sagittarius-scheme/downloads
 
@@ -108,12 +114,17 @@ make install
 cd ..
 rm -rf *
 
-if [ -e $INSTALL_DIR/sagittarius ]; then
-    rm -rf $INSTALL_DIR/sagittarius
-fi
-if [ -e $SCHEME_ENV_HOME/bin/sagittarius ]; then
-    rm -rf $SCHEME_ENV_HOME/bin/sagittarius
-fi
+remove_if_exists()
+{
+    for file in "$@"
+    do
+	if [ -e $file ]; then
+	    rm -rf $file
+	fi
+    done
+}
+
+remove_if_exists $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/sagittarius
 
 cat << EOF > $INSTALL_DIR/sagittarius
 #!/bin/sh
@@ -122,13 +133,13 @@ EOF
 
 chmod +x $INSTALL_DIR/sagittarius
 
-rm $SCHEME_ENV_HOME/bin/sagittarius
-rm $SCHEME_ENV_HOME/bin/default
-rm $SCHEME_ENV_HOME/bin/host-scheme
+remove_if_exists $SCHEME_ENV_HOME/bin/default $SCHEME_ENV_HOME/bin/host-scheme
 
-ln -s $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/sagittarius
-ln -s $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/default
-ln -s $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/host-scheme
+LINK_NAME=$SCHEME_ENV_HOME/bin/sagittarius@$VERSION
+
+ln -s $INSTALL_DIR/sagittarius $LINK_NAME
+ln -s $LINK_NAME $SCHEME_ENV_HOME/bin/default
+ln -s $LINK_NAME $SCHEME_ENV_HOME/bin/host-scheme
 
 cd $SCHEME_ENV_HOME
 
@@ -155,7 +166,7 @@ case $USE_LOCAL in
 	;;
 esac
 
-echo <<EOF
+cat <<EOF
 Host Scheme system is installed. Please add the following to your resource file:
 PATH=~/.scheme-env/bin:\$PATH
 

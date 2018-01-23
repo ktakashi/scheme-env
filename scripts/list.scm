@@ -30,7 +30,8 @@
 
 (import (rnrs)
 	(sagittarius)
-	(util file))
+	(util file)
+	(srfi :13))
 
 (define (print . args) (for-each display args) (newline))
 (define scheme-env-home
@@ -42,7 +43,7 @@
   (print "Installed implementations:")
   (path-for-each bin-directory
 		 (lambda (path type)
-		   (unless (path-extension path)
+		   (when (string-contains path "@")
 		     (case (string->symbol path)
 		       ((default host-scheme scheme-env))
 		       (else (print "    " path)))))
