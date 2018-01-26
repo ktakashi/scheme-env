@@ -35,6 +35,7 @@ Currently the followings are the supported implementation
 
 - Chibi Scheme (chibi-scheme)
 - Sagittarius Scheme (sagittarius)
+- Gauche (gauche)
 
 You can also specify the version by adding `@` and version number.
 For example:
@@ -51,3 +52,7 @@ To swich default implementation, you can run the following command
 $ scheme-env switch implementation
 ```
 If this command isn't run, then `sagitarius` is set to default.
+
+# Acknowledgement
+
+* Shiro Kawai for the installation script of Gauche

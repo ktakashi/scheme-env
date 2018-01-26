@@ -102,6 +102,7 @@
   (print " Supporting implementations")
   (print "  - chibi-scheme")
   (print "  - sagittarius")
+  (print "  - gauche")
   (exit -1))
 
 (define (main args)
