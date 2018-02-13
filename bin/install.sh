@@ -57,8 +57,11 @@ init_commands() {
 	    linux_command
 	    ;;
 	*)
-	    echo "$PLATFORM_OS is not supported"
-	    exit 1
+	    echo "***********************WARNING************************"
+	    echo "* Package manager of '$PLATFORM_OS' is not supported.*"
+	    echo "* So required package must manually be installed.    *"
+	    echo "******************************************************"
+	    SCHEME_ENV_INSTALL_PACKAGE=no
 	    ;;
     esac
 }
@@ -85,34 +88,127 @@ while getopts "l:" o; do
 done
 shift $((OPTIND-1))
 
+init_commands
+echo "Should install packages ... $SCHEME_ENV_INSTALL_PACKAGE"
 case $SCHEME_ENV_INSTALL_PACKAGE in
     1|yes)
-	init_commands
 	# TODO absorb the different names
 	install_package gcc g++ make curl cmake libgc-dev libffi-dev zlib1g-dev
 	;;
 esac
 
+check_downloader()
+{
+    # curl first, then wget
+    echo -n "Checking curl ... "
+    c=`command -v curl`
+    if [ $? -eq 0 ]; then
+	echo "yes"
+	CURL="curl -L -o"
+    else
+	echo "no"
+	echo -n "Checking wget ... "
+	c=`command -v wget`
+	if [ $? -eq 0 ]; then
+	    echo "yes"
+	    CURL="wget -q -O"
+	else
+	    echo "no"
+	    echo "curl or wget is required"
+	    exit 1
+	fi
+    fi
+}
+check_downloader
+
 REPOSITORY_URL=https://bitbucket.org/ktakashi/sagittarius-scheme/downloads
 
-curl -L -o work/version $REPOSITORY_URL/latest-version.txt
+echo -n "Downloading latest-version.txt ... "
+$CURL work/version $REPOSITORY_URL/latest-version.txt
+echo "done!"
+
 VERSION=`cat work/version`
+echo "Host Sagittarius version ... $VERSION"
+
+echo -n "Downloading Sagittarius $VERSION ... "
 LATEST_TAR=sagittarius-$VERSION.tar.gz
-curl -L -o work/$LATEST_TAR $REPOSITORY_URL/$LATEST_TAR
+$CURL work/$LATEST_TAR $REPOSITORY_URL/$LATEST_TAR
+echo "done!"
 
 cd work
+echo -n "Expanding Sagittarius $VERSION ... "
 tar xf $LATEST_TAR
+echo "done!"
+
 SAGITTARIUS_DIR=$SCHEME_ENV_HOME/implementations/sagittarius
 INSTALL_DIR=$SAGITTARIUS_DIR/$VERSION
 
 cd sagittarius-$VERSION
-cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR .
-make -j8
-make install
+echo -n "Pre-build process ... "
+cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR . > /dev/null 2>&1
+echo "done!"
 
+progress()
+{
+    first=1
+    indicator='|'
+    msg=$1
+    while read line; do
+	percent=`echo $line | sed -ne 's/\[\s*\([0-9]*\)%\].*/\1/p'`
+	if [ x"$percent" != x"" ]; then
+	    count=`expr $percent / 10`
+	    echo -ne "$msg ... #"
+	    for i in `seq 1 $count`
+	    do
+		echo -ne '###'
+	    done
+	    r=`expr 10 - $count`
+	    for i in `seq 1 $r`;
+	    do
+		echo -ne '   '
+	    done
+	    echo -ne "  ($percent%)\r"
+	else
+	    file=`echo $line | sed -ne 's/^--\s*.*:\s*\(.*\)/\1/p'`
+	    if [ $first -eq 1 ]; then
+		echo -ne '\n'
+		first=0
+	    fi
+	    if [ x"$file" != x"" ]; then
+		echo -ne "Installing files ... $indicator\r"
+		if [ x"$indicator" == x"|" ]; then
+		    indicator='-'
+		else
+		    indicator='|'
+		fi
+	    fi
+	fi
+    done
+    if [ $first -eq 0 ]; then
+	echo -ne "\n"
+    fi
+}
+make -j8 2>&1     | progress "Building host Sagittarius  "
+make install 2>&1 | progress "Installing host Sagittarius"
+
+HOST_SCHEME=`pwd`
 # back to work
 cd ..
-rm -rf *
+case `uname -s` in
+    *CYGWIN*)
+	make rebase > /dev/null 2>&1
+	echo "****************************************************"
+	echo "*   PLEASE EXECUTE /bin/rebaseall -v -T dlls.txt   *"
+	echo "****************************************************"
+	echo "Command on Ash (or Dash)"
+	echo "cd $HOST_SCHEME; /bin/rebaseall -v -T dlls.txt"
+	echo "Reinstall command"
+	echo "cd $HOST_SCHEME; make install"
+    ;;
+    *)
+	# remove work
+	rm -rf *
+esac
 
 remove_if_exists()
 {
@@ -126,6 +222,7 @@ remove_if_exists()
 
 remove_if_exists $INSTALL_DIR/sagittarius $SCHEME_ENV_HOME/bin/sagittarius
 
+echo -n "Creating symblic links ... "
 cat << EOF > $INSTALL_DIR/sagittarius
 #!/bin/sh
 LD_LIBRARY_PATH=$INSTALL_DIR/lib $INSTALL_DIR/bin/sagittarius "\$@"
@@ -140,9 +237,11 @@ LINK_NAME=$SCHEME_ENV_HOME/bin/sagittarius@$VERSION
 ln -s $INSTALL_DIR/sagittarius $LINK_NAME
 ln -s $LINK_NAME $SCHEME_ENV_HOME/bin/default
 ln -s $LINK_NAME $SCHEME_ENV_HOME/bin/host-scheme
+echo "done!"
 
 cd $SCHEME_ENV_HOME
 
+echo -n "Installing execution script ... "
 cat <<EOF > bin/scheme-env
 #!/bin/bash
 
@@ -157,12 +256,14 @@ exec env SCHEME_ENV_HOME=$SCHEME_ENV_HOME $SCHEME_ENV_HOME/bin/host-scheme $SCHE
 EOF
 
 chmod +x bin/scheme-env
+echo "done!"
+
 case $USE_LOCAL in
     yes)
 	cp $LOCAL_REPOSITORY/bin/scheme-env.scm bin/scheme-env.scm 
 	;;
     *)
-	curl -L -o bin/scheme-env.scm https://raw.githubusercontent.com/ktakashi/scheme-env/master/bin/scheme-env.scm
+	$CURL bin/scheme-env.scm https://raw.githubusercontent.com/ktakashi/scheme-env/master/bin/scheme-env.scm
 	;;
 esac
 
