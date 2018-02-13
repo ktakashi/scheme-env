@@ -170,11 +170,11 @@ progress()
 	    echo -ne "  ($percent%)\r"
 	else
 	    file=`echo $line | sed -ne 's/^--\s*.*:\s*\(.*\)/\1/p'`
-	    if [ $first -eq 1 ]; then
-		echo -ne '\n'
-		first=0
-	    fi
 	    if [ x"$file" != x"" ]; then
+		if [ $first -eq 1 ]; then
+		    echo -ne '\n'
+		    first=0
+		fi
 		echo -ne "Installing files ... $indicator\r"
 		if [ x"$indicator" == x"|" ]; then
 		    indicator='-'
@@ -184,8 +184,10 @@ progress()
 	    fi
 	fi
     done
-    if [ $first -eq 0 ]; then
+    if [ $first -eq 1 ]; then
 	echo -ne "\n"
+    else
+	echo "Installing files ... done!"
     fi
 }
 make -j8 2>&1     | progress "Building host Sagittarius  "
