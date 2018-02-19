@@ -33,63 +33,16 @@
 	(rnrs eval)
 	(sagittarius)
 	(sagittarius regex)
-	(sagittarius process)
 	(scheme load)
-	(archive)
-	(rfc http)
-	(rfc gzip)
-	(util file)
-	(srfi :26)
-	(srfi :39))
+	(tools))
 
 (define (print . args) (for-each display args) (newline))
 (define (parse-version arg)
   (cond ((#/([^@]+)@(.+)/ arg) => (lambda (m) (values (m 1) (m 2))))
 	(else (values arg #f))))
 
-(define scheme-env-home
-  (or (getenv "SCHEME_ENV_HOME")
-      (begin (print "invalid call") (exit -1))))
-
-(define-constant +default-github-repository+
-  "https://raw.githubusercontent.com/ktakashi/scheme-env/master/scripts/install")
-
 (define (invoke-installer implementation version)
-  (define repository
-    (cond ((getenv "SCHEME_ENV_REPOSITORY") =>
-	   (lambda (r) (build-path* r "scripts" "install")))
-	  (else +default-github-repository+)))
-  (define (->implementation-file base) (format "~a/~a.scm" base implementation))
-  
-  (define (get-file implementation-file repository)
-    (define (download m)
-      (let-values (((s h b)
-		    (http-get (m 2) (->implementation-file (m 3))
-			      :secure (string=? (m 1) "https"))))
-	(unless (string=? s "200")
-	  (assertion-violation 'scheme-env "implementation not found"
-			       implementation))
-	(call-with-output-file implementation-file
-	  (lambda (out) (put-string out b)))
-	implementation-file))
-    (cond ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
-	   (lambda (m)
-	     (cond ((file-exists? implementation-file) implementation-file)
-		   (else (download m)))))
-	  (else
-	   (let ((local (->implementation-file repository)))
-	     (cond ((file-exists? local)
-		    (copy-file local implementation-file #t)
-		    implementation-file)
-		   ((file-exists? implementation-file) implementation-file)
-		   (else
-		    (assertion-violation 'scheme-env
-					 "implementation not found in local"
-					 implementation)))))))
-  (define local-repository (build-path* scheme-env-home "scripts" "install"))
-  
-  (unless (file-exists? local-repository) (create-directory* local-repository))
-  (let ((file (get-file (->implementation-file local-repository) repository))
+  (let ((file (scheme-env:script-file (format "install/~a" implementation)))
 	(env (environment '(only (sagittarius) import library define-library))))
     (load file env)
     (eval `(install ,version) env)))
