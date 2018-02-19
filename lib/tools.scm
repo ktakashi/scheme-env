@@ -32,11 +32,18 @@
 (library (tools)
   (export scheme-env-repository
 	  scheme-env-home
-	  scheme-env:script-file)
+	  scheme-env-work-directory
+	  scheme-env-implentations-directory
+
+	  scheme-env:download
+	  scheme-env:script-file
+	  
+	  scheme-env:with-work-directory)
   (import (rnrs)
 	  (sagittarius)
 	  (util file)
-	  (rfc http))
+	  (rfc http)
+	  (srfi :39))
 
 (define-constant +default-github-repository+
   "https://raw.githubusercontent.com/ktakashi/scheme-env/master")
@@ -46,6 +53,9 @@
 (define (scheme-env-repository)
   (cond ((getenv "SCHEME_ENV_REPOSITORY"))
 	(else +default-github-repository+)))
+(define (scheme-env-work-directory) (build-path (scheme-env-home) "work"))
+(define (scheme-env-implentations-directory)
+  (build-path (scheme-env-home) "implementations"))
 
 (define (scheme-env:download file)
   (define destination-directory (scheme-env-home))
@@ -80,5 +90,11 @@
 (define (->scheme-file pre part) (format "~a/~a.scm" pre part))
 (define (scheme-env:script-file command)
   (scheme-env:download (->scheme-file "scripts" command)))
+
+(define (scheme-env:with-work-directory impl version proc)
+  (let ((work-dir (build-path* (scheme-env-work-directory) impl version)))
+    (when (file-exists? work-dir) (delete-directory* work-dir))
+    (create-directory* work-dir)
+    (parameterize ((current-directory work-dir)) (proc work-dir))))
 
 )
