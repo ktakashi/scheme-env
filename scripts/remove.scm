@@ -1,6 +1,6 @@
 ;;; -*- mode:scheme; coding:utf-8; -*-
 ;;;
-;;; install.scm - Scheme environment install command script
+;;; remove.scm - Scheme environment remove command script
 ;;;  
 ;;;   Copyright (c) 2018  Takashi Kato  <ktakashi@ymail.com>
 ;;;   
@@ -33,32 +33,37 @@
 	(rnrs eval)
 	(sagittarius)
 	(sagittarius regex)
-	(scheme load)
+	(util file)
+	(srfi :13)
 	(tools))
 
 (define (print . args) (for-each display args) (newline))
 
-(define (invoke-installer implementation version)
-  (let ((file (scheme-env:script-file (format "install/~a" implementation)))
-	(env (environment '(only (sagittarius) import library define-library))))
-    (load file env)
-    (eval `(install ,version) env)))
 
 (define (usage)
-  (print "scheme-env install implementation ...")
-  (print " implementation format")
-  (print "  - implementation")
-  (print "  - implementation@version")
-  (print " Supporting implementations")
-  (print "  - chibi-scheme")
-  (print "  - sagittarius")
-  (print "  - gauche")
+  (print "scheme-env remove implementation ...")
+  (print " To check the installed implementation, please use `list` command")
   (exit -1))
+
+(define (remove-implementation impl)
+  (define bin (build-path (scheme-env-bin-directory) impl))
+  (define (err msg . irr)
+    (print msg)
+    (for-each (lambda (i) (print "  irritant: " i)) irr))
+  (define (do-remove symlink)
+    (let-values (((name version) (scheme-env:parse-version impl)))
+      (delete-directory* (build-path* (scheme-env-implentations-directory)
+				      name version))
+      (delete-file symlink)
+      (print impl " has been removed")))
+  (if (and (string-contains impl "@") (file-exists? bin))
+      (let ((host-scheme (absolute-path (scheme-env-host-implementation)))
+	    (target (absolute-path bin)))
+	(if (equal? host-scheme target)
+	    (err "Attempt to remove host scheme" impl)
+	    (do-remove bin)))
+      (err "Invalid file" bin)))
 
 (define (main args)
   (when (null? args) (usage))
-  (for-each (lambda (implementation)
-	      (let-values (((impl version)
-			    (scheme-env:parse-version implementation)))
-		(invoke-installer impl version)))
-	    args))
+  (for-each remove-implementation args))

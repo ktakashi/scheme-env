@@ -32,11 +32,16 @@
 (library (tools)
   (export scheme-env-repository
 	  scheme-env-home
+	  scheme-env-bin-directory
 	  scheme-env-work-directory
 	  scheme-env-implentations-directory
+	  scheme-env-default-implementation
+	  scheme-env-host-implementation
 
 	  scheme-env:download
 	  scheme-env:script-file
+
+	  scheme-env:parse-version
 	  
 	  scheme-env:with-work-directory)
   (import (rnrs)
@@ -53,9 +58,14 @@
 (define (scheme-env-repository)
   (cond ((getenv "SCHEME_ENV_REPOSITORY"))
 	(else +default-github-repository+)))
+(define (scheme-env-bin-directory) (build-path (scheme-env-home) "bin"))
 (define (scheme-env-work-directory) (build-path (scheme-env-home) "work"))
 (define (scheme-env-implentations-directory)
   (build-path (scheme-env-home) "implementations"))
+(define (scheme-env-default-implementation)
+  (build-path* (scheme-env-home) "bin" "default"))
+(define (scheme-env-host-implementation)
+  (build-path* (scheme-env-home) "bin" "host-scheme"))
 
 (define (scheme-env:download file)
   (define destination-directory (scheme-env-home))
@@ -96,5 +106,12 @@
     (when (file-exists? work-dir) (delete-directory* work-dir))
     (create-directory* work-dir)
     (parameterize ((current-directory work-dir)) (proc work-dir))))
+
+;; separated by @
+;; name@version -> (values name version)
+;; name -> (values name #f)
+(define (scheme-env:parse-version arg)
+  (cond ((#/([^@]+)@(.+)/ arg) => (lambda (m) (values (m 1) (m 2))))
+	(else (values arg #f))))
 
 )
