@@ -36,15 +36,12 @@
 	(rfc http)
 	(rfc gzip)
 	(archive)
+	(tools)
 	(util file)
 	(srfi :26)
 	(srfi :39))
 
 (define (print . args) (for-each display args) (newline))
-(define scheme-env-home
-  (or (getenv "SCHEME_ENV_HOME")
-      (begin (print "invalid call") (exit -1))))
-(define work-directory (build-path scheme-env-home "work"))
 
 (define (call-with-safe-output-file file proc)
   (when (file-exists? file) (delete-file file))
@@ -58,7 +55,8 @@
 (define (install version)
   (define real-version (or version "master"))
   (define install-prefix
-    (build-path* scheme-env-home "implementations" "chibi-scheme" real-version))
+    (build-path* (scheme-env-implentations-directory)
+		 "chibi-scheme" real-version))
   (define (download dir)
     (let-values (((s h b)
 		  (http-get "github.com"
@@ -71,30 +69,28 @@
 			     "Failed to download Chibi Scheme" s h))
       (call-with-archive-input 'zip (open-bytevector-input-port b)
 	(cut extract-all-entries <> :overwrite #t :destinator destinator))))
-  (let ((work-dir (build-path* work-directory "chibi-scheme" real-version))
-	(prefix (format "PREFIX=~a" install-prefix)))
-    (when (file-exists? work-dir) (delete-directory* work-dir))
-    (create-directory* work-dir)
-    (parameterize ((current-directory work-dir))
-      (download work-dir)
-      (path-for-each "." (lambda (path type)
-			   (case type
-			     ((directory)
-			      (parameterize ((current-directory path))
-				(run "make" prefix)
-				(run "make" prefix "install")))))
-		     :recursive #f))
-    (let ((new (build-path* scheme-env-home "bin"
-			    (format "chibi-scheme~a"
-				    (string-append "@" real-version))))
-	  (old (build-path* install-prefix "chibi-scheme"))
-	  (bin (build-path* install-prefix "bin" "chibi-scheme"))
-	  (lib (build-path* install-prefix "lib")))
-      (call-with-safe-output-file old
-        (lambda (out)
-	  (put-string out "#!/bin/sh\n")
-	  (format out "LD_LIBRARY_PATH=~a ~a \"$@\"" lib bin)))
-      (change-file-mode old #o775)
-      (when (file-exists? new) (delete-file new))
-      (create-symbolic-link old new)
-      (print "Chibi Scheme is installed"))))
+  (scheme-env:with-work-directory (build-path "chibi-scheme" real-version)
+    (lambda (work-dir)
+      (let ((prefix (format "PREFIX=~a" install-prefix)))
+	(download work-dir)
+	(path-for-each "." (lambda (path type)
+			     (case type
+			       ((directory)
+				(parameterize ((current-directory path))
+				  (run "make" prefix)
+				  (run "make" prefix "install")))))
+		       :recursive #f))))
+  (let ((new (build-path* (scheme-env-home) "bin"
+			  (format "chibi-scheme~a"
+				  (string-append "@" real-version))))
+	(old (build-path* install-prefix "chibi-scheme"))
+	(bin (build-path* install-prefix "bin" "chibi-scheme"))
+	(lib (build-path* install-prefix "lib")))
+    (call-with-safe-output-file old
+      (lambda (out)
+	(put-string out "#!/bin/sh\n")
+	(format out "LD_LIBRARY_PATH=~a ~a \"$@\"" lib bin)))
+    (change-file-mode old #o775)
+    (when (file-exists? new) (delete-file new))
+    (create-symbolic-link old new)
+    (print "Chibi Scheme is installed")))
