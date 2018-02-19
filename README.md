@@ -5,7 +5,7 @@ This will be a simple Scheme implementation switcher.
 # How to install
 
 ```
-$ curl https://raw.githubusercontent.com/ktakashi/scheme-env/master/bin/install.sh | sh
+$ curl https://raw.githubusercontent.com/ktakashi/scheme-env/master/bin/install.sh | bash
 ```
 
 After the installation you need to add the following to your shell
