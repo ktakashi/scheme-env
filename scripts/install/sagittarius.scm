@@ -100,7 +100,7 @@
     (when (equal? real-version "head")
       (run "env" (format "SASH=~a/bin/host-scheme" (scheme-env-home))
 	   "sh" "dist.sh" "gen")))
-  (scheme-env:with-work-directory "sagittarius" real-version
+  (scheme-env:with-work-directory (build-path "sagittarius" real-version)
     (lambda (work-dir)
       (let ((prefix (format "-DCMAKE_INSTALL_PREFIX=~a" install-prefix)))
 	(download work-dir)

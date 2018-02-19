@@ -91,8 +91,8 @@
 (define (scheme-env:script-file command)
   (scheme-env:download (->scheme-file "scripts" command)))
 
-(define (scheme-env:with-work-directory impl version proc)
-  (let ((work-dir (build-path* (scheme-env-work-directory) impl version)))
+(define (scheme-env:with-work-directory name proc)
+  (let ((work-dir (build-path* (scheme-env-work-directory) name)))
     (when (file-exists? work-dir) (delete-directory* work-dir))
     (create-directory* work-dir)
     (parameterize ((current-directory work-dir)) (proc work-dir))))
