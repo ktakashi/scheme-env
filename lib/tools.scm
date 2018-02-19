@@ -1,6 +1,6 @@
 ;;; -*- mode:scheme; coding:utf-8; -*-
 ;;;
-;;; scheme-env.scm - Scheme environment command invocation script
+;;; tools.scm - Scheme environment tools
 ;;;  
 ;;;   Copyright (c) 2018  Takashi Kato  <ktakashi@ymail.com>
 ;;;   
@@ -29,72 +29,56 @@
 ;;;  
 
 #!read-macro=sagittarius/regex
-(import (rnrs)
-	(rnrs eval)
-	(sagittarius)
-	(sagittarius regex)
-	(scheme load)
-	(rfc http)
-	(util file))
+(library (tools)
+  (export scheme-env-repository
+	  scheme-env-home
+	  scheme-env:script-file)
+  (import (rnrs)
+	  (sagittarius)
+	  (util file)
+	  (rfc http))
 
-;; a bit of duplication
 (define-constant +default-github-repository+
   "https://raw.githubusercontent.com/ktakashi/scheme-env/master")
-(define scheme-env-repository
-  (cond ((getenv "SCHEME_ENV_REPOSITORY"))
-	(else +default-github-repository+)))
-(define scheme-env-home
+(define (scheme-env-home)
   (or (getenv "SCHEME_ENV_HOME")
       (assertion-violation 'scheme-env-home "SCHEME_ENV_HOME is not set")))
+(define (scheme-env-repository)
+  (cond ((getenv "SCHEME_ENV_REPOSITORY"))
+	(else +default-github-repository+)))
 
-(define (load-tools-library)
-  (define destination-directory (build-path scheme-env-home "lib"))
-  (define output-file (build-path destination-directory "tools.scm"))
-  (define repository scheme-env-repository)
+(define (scheme-env:download file)
+  (define destination-directory (scheme-env-home))
+  (define output-file (build-path destination-directory file))
+  (define repository (scheme-env-repository))
   (define (download m)
     (let-values (((s h b)
-		  (http-get (m 2) (string-append (m 3) "/lib/tools.scm")
+		  (http-get (m 2) (string-append (m 3) "/" file)
 			    :secure (string=? (m 1) "https"))))
       (unless (string=? s "200")
-	(assertion-violation 'scheme-env "tools library not found"))
+	(assertion-violation 'scheme-env "file not found" file))
       (call-with-output-file output-file
 	(lambda (out) (put-string out b)))
       output-file))
-  (define (retrieve-file)
-    (cond ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
+  (let-values (((base name ext) (decompose-path output-file)))
+    (unless (file-exists? base) (create-directory* base)))
+  (cond ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
 	   (lambda (m)
 	     (cond ((file-exists? output-file) output-file)
 		   (else (download m)))))
-	  (else
-	   (let ((repository-file (build-path* repository "lib" "tools.scm")))
-	     (cond ((file-exists? repository-file)
-		    (copy-file repository-file output-file #t)
-		    output-file)
-		   ((file-exists? repository-file) repository-file)
-		   (else
-		    (assertion-violation 'load-tools-library
-		      "Tools library file not found in specified repository" 
-		      )))))))
-  (unless (file-exists? destination-directory)
-    (create-directory* destination-directory))
-  (let ((tools (retrieve-file)))
-    (load tools)))
+	(else
+	 (let ((repository-file (build-path repository file)))
+	   (cond ((file-exists? repository-file)
+		  (copy-file repository-file output-file #t)
+		  output-file)
+		 ((file-exists? repository-file) repository-file)
+		 (else
+		  (assertion-violation 'scheme-env:download
+				       "File not found in specified repository"
+				       file)))))))
 
-(define (invoke-command command args)
-  (load-tools-library)
-  ;; ok we need to specify the library
-  (let ((file (eval `(scheme-env:script-file 'install)
-		    (environment '(rnrs) '(tools))))
-	(env (environment '(only (sagittarius) import library define-library))))
-    (load file env)
-    (eval `(main ',args) env)))
+(define (->scheme-file pre part) (format "~a/~a.scm" pre part))
+(define (scheme-env:script-file command)
+  (scheme-env:download (->scheme-file "scripts" command)))
 
-(define (usage)
-  (print "scheme-env command [OPTIONS]")
-  (exit -1))
-
-(define (main args)
-  (when (null? (cdr args)) (usage))
-  (case (string->symbol (cadr args))
-    ((help) (usage))
-    (else => (lambda (command) (invoke-command command (cddr args))))))
+)
