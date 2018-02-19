@@ -142,23 +142,17 @@ echo "done!"
 VERSION=`cat work/version`
 echo "Host Sagittarius version ... ${VERSION}"
 
-echo -n "Downloading Sagittarius ${VERSION} ... "
-LATEST_TAR=sagittarius-${VERSION}.tar.gz
-${CURL} work/${LATEST_TAR} ${REPOSITORY_URL}/${LATEST_TAR}
-echo "done!"
-
-cd work
-echo -n "Expanding Sagittarius $VERSION ... "
-tar xf ${LATEST_TAR}
-echo "done!"
-
 SAGITTARIUS_DIR=$SCHEME_ENV_HOME/implementations/sagittarius
 INSTALL_DIR=${SAGITTARIUS_DIR}/${VERSION}
 
-cd sagittarius-${VERSION}
-echo -n "Pre-build process ... "
-cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} . >  build.log 2>&1
-echo "done!"
+SKIP_HOST_INSTALL=no
+if [ -f ${SCHEME_ENV_HOME}/bin/host-scheme ]; then
+    installed_version=`${SCHEME_ENV_HOME}/bin/host-scheme -v`
+    case ${installed_version} in
+	*${VERSION}*) SKIP_HOST_INSTALL=yes ;;
+	*) ;;
+    esac
+fi
 
 progress()
 {
@@ -201,26 +195,50 @@ progress()
 	echo "Installing files ... done!"
     fi
 }
-make -j8 2>&1     | tee -a build.log | progress "Building host Sagittarius  "
-make install 2>&1 | tee -a build.log | progress "Installing host Sagittarius"
 
-HOST_SCHEME=`pwd`
-# back to work
-cd ..
-case `uname -s` in
-    *CYGWIN*)
-	make rebase > /dev/null 2>&1
-	echo "****************************************************"
-	echo "*   PLEASE EXECUTE /bin/rebaseall -v -T dlls.txt   *"
-	echo "****************************************************"
-	echo "Command on Ash (or Dash)"
-	echo "cd ${HOST_SCHEME}; /bin/rebaseall -v -T dlls.txt"
-	echo "Reinstall command"
-	echo "cd ${HOST_SCHEME}; make install"
-    ;;
-    *)
-	# remove work
-	rm -rf *
+install_host_scheme()
+{
+    echo -n "Downloading Sagittarius ${VERSION} ... "
+    LATEST_TAR=sagittarius-${VERSION}.tar.gz
+    ${CURL} work/${LATEST_TAR} ${REPOSITORY_URL}/${LATEST_TAR}
+    echo "done!"
+
+    cd work
+    echo -n "Expanding Sagittarius $VERSION ... "
+    tar xf ${LATEST_TAR}
+    echo "done!"
+
+    cd sagittarius-${VERSION}
+    echo -n "Pre-build process ... "
+    cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} . >  build.log 2>&1
+    echo "done!"
+
+    make -j8 2>&1    | tee -a build.log | progress "Building host Sagittarius  "
+    make install 2>&1| tee -a build.log | progress "Installing host Sagittarius"
+
+    HOST_SCHEME=`pwd`
+    # back to work
+    cd ..
+    case `uname -s` in
+	*CYGWIN*)
+	    make rebase > /dev/null 2>&1
+	    echo "****************************************************"
+	    echo "*   PLEASE EXECUTE /bin/rebaseall -v -T dlls.txt   *"
+	    echo "****************************************************"
+	    echo "Command on Ash (or Dash)"
+	    echo "cd ${HOST_SCHEME}; /bin/rebaseall -v -T dlls.txt"
+	    echo "Reinstall command"
+	    echo "cd ${HOST_SCHEME}; make install"
+	    ;;
+	*)
+	    # remove work
+	    rm -rf *
+    esac
+}
+
+case ${SKIP_HOST_INSTALL} in
+    yes) echo "The latest host Sagittarius is installed so skip" ;;
+    no) install_host_scheme ;;
 esac
 
 remove_if_exists()
@@ -248,6 +266,8 @@ remove_if_exists ${SCHEME_ENV_HOME}/bin/default \
 
 LINK_NAME=${SCHEME_ENV_HOME}/bin/sagittarius@${VERSION}
 
+remove_if_exists ${LINK_NAME}
+
 ln -s ${INSTALL_DIR}/sagittarius ${LINK_NAME}
 ln -s ${LINK_NAME} ${SCHEME_ENV_HOME}/bin/default
 ln -s ${LINK_NAME} ${SCHEME_ENV_HOME}/bin/host-scheme
@@ -259,10 +279,20 @@ echo -n "Installing execution script ... "
 cat <<EOF > bin/scheme-env
 #!/bin/sh
 
+run_scheme() 
+{
+    maybe_name=\$1
+    if [ -f ${SCHEME_ENV_HOME}/bin/\${maybe_name} ]; then
+	shift
+	exec ${SCHEME_ENV_HOME}/bin/\${maybe_name} "\$@"
+    fi
+    exec ${SCHEME_ENV_HOME}/bin/default "\$@"
+}
+
 case \$1 in
     run)
 	shift
-	exec ${SCHEME_ENV_HOME}/bin/default "\$@"
+	run_scheme "\$@"
 	;;
 esac
 
