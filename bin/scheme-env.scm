@@ -83,7 +83,7 @@
 (define (invoke-command command args)
   (load-tools-library)
   ;; ok we need to specify the library
-  (let ((file (eval `(scheme-env:script-file 'install)
+  (let ((file (eval `(scheme-env:script-file ',command)
 		    (environment '(rnrs) '(tools))))
 	(env (environment '(only (sagittarius) import library define-library))))
     (load file env)
