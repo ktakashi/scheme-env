@@ -1,6 +1,6 @@
 ;;; -*- mode:scheme; coding:utf-8; -*-
 ;;;
-;;; install.scm - Scheme environment install command script
+;;; install/foment.scm - Foment install script
 ;;;  
 ;;;   Copyright (c) 2018  Takashi Kato  <ktakashi@ymail.com>
 ;;;   
@@ -28,38 +28,38 @@
 ;;;   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;;;  
 
-#!read-macro=sagittarius/regex
+#!nounbound
 (import (rnrs)
-	(rnrs eval)
 	(sagittarius)
-	(sagittarius regex)
-	(scheme load)
-	(tools))
+	(sagittarius process)
+	(tools)
+	(util file)
+	(srfi :26)
+	(srfi :39))
 
 (define (print . args) (for-each display args) (newline))
 
-(define (invoke-installer implementation version)
-  (let ((file (scheme-env:script-file (format "install/~a" implementation)))
-	(env (environment '(only (sagittarius) import library define-library))))
-    (load file env)
-    (eval `(install ,version) env)))
-
-(define (usage)
-  (print "scheme-env install implementation ...")
-  (print " implementation format")
-  (print "  - implementation")
-  (print "  - implementation@version")
-  (print " Supporting implementations")
-  (print "  - chibi-scheme")
-  (print "  - sagittarius")
-  (print "  - gauche")
-  (print "  - foment")
-  (exit -1))
-
-(define (main args)
-  (when (null? args) (usage))
-  (for-each (lambda (implementation)
-	      (let-values (((impl version)
-			    (scheme-env:parse-version implementation)))
-		(invoke-installer impl version)))
-	    args))
+(define (install version)
+  (define real-version (or version "master"))
+  (define (download)
+    (let ((b (scheme-env:download-github-archive
+	      (format "/leftmike/foment/archive/~a.zip" real-version))))
+      (scheme-env:extract-archive-port (open-bytevector-input-port b) 'zip)))
+  (define dir (build-path "foment" real-version))
+  (define install-dir (build-path (scheme-env-implentations-directory) dir))
+  (scheme-env:with-work-directory dir
+    (lambda (work-dir)
+      (let ()
+	(download)
+	(let ((path (scheme-env:find-extracted-directory ".")))
+	  (parameterize ((current-directory (build-path path "unix")))
+	    (run "make")
+	    (unless (file-exists? install-dir)
+	      (create-directory* install-dir))
+	    (copy-file "release/foment"
+		       (build-path install-dir "foment")))))))
+  (let ((new (scheme-env:binary-path "foment" real-version))
+	(old (build-path* install-dir "foment")))
+    (when (file-exists? new) (delete-file new))
+    (create-symbolic-link old new)
+    (scheme-env:finish-message "Foment" real-version)))

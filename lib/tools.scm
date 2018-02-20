@@ -43,11 +43,21 @@
 
 	  scheme-env:parse-version
 	  
-	  scheme-env:with-work-directory)
+	  scheme-env:with-work-directory
+
+	  scheme-env:download-github-archive
+	  scheme-env:extract-archive-port
+	  scheme-env:find-extracted-directory
+	  scheme-env:binary-path
+	  scheme-env:create-script-file
+	  scheme-env:finish-message
+	  )
   (import (rnrs)
 	  (sagittarius)
+	  (archive)
 	  (util file)
 	  (rfc http)
+	  (srfi :26)
 	  (srfi :39))
 
 (define-constant +default-github-repository+
@@ -113,5 +123,56 @@
 (define (scheme-env:parse-version arg)
   (cond ((#/([^@]+)@(.+)/ arg) => (lambda (m) (values (m 1) (m 2))))
 	(else (values arg #f))))
+
+(define (scheme-env:download-github-archive path
+	  :key (receiver (http-binary-receiver)))
+  (let-values (((s h b) (http-get "github.com" path
+				  :receiver receiver :secure #t)))
+    (unless (string=? s "200")
+      (error 'scheme-env:download-github-archive "Failed to download" path))
+    b))
+
+(define (scheme-env:extract-archive-port port type)
+  (define (destinator e)
+    (let ((name (archive-entry-name e)))
+      (format #t "-- Extracting: ~a~%" name)
+      name))
+  (let-values (((p t) (case type
+			((zip) (values port type))
+			((tar.gz) (values (open-gzip-input-port port) 'tar)))))
+    (call-with-archive-input t p
+      (cut extract-all-entries <> :overwrite #t :destinator destinator))))
+
+;; returns first found directory. (should be fine)
+(define (scheme-env:find-extracted-directory path)
+  (call/cc (lambda (return)
+	     (path-for-each path (lambda (p t)
+				   (and (eq? t 'directory) (return p)))
+			    :recursive #f))))
+
+(define (scheme-env:binary-path name version)
+  (build-path* (scheme-env-home) "bin" (format "~a@~a" name version)))
+
+(define (scheme-env:create-script-file binary-path prefix name bin lib)
+  (define (call-with-safe-output-file file proc)
+    (when (file-exists? file) (delete-file file))
+    (call-with-output-file file proc))
+  (let ((new binary-path)
+	(script (build-path* prefix name))
+	(bin (build-path* prefix bin name))
+	(lib (build-path* prefix lib)))
+    (when (file-exists? script) (delete-file script))
+    (call-with-output-file script
+      (lambda (out)
+	(put-string out "#!/bin/sh\n")
+	(format out "LD_LIBRARY_PATH=~a:${LD_LIBRARY_PATH} ~a \"$@\""
+		lib bin)
+	(change-file-mode script #o775)
+	(when (file-exists? new) (delete-file new))
+	(create-symbolic-link script new)
+	script))))
+
+(define (scheme-env:finish-message implementation version)
+  (format #t "~a@~a is installed ~%" implementation version))
 
 )

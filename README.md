@@ -36,6 +36,7 @@ Currently the followings are the supported implementation
 - Chibi Scheme (chibi-scheme)
 - Sagittarius Scheme (sagittarius)
 - Gauche (gauche)
+- Foment (foment)
 
 You can also specify the version by adding `@` and version number.
 For example:

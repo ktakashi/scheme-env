@@ -7,8 +7,6 @@
 	(tools)
 	(srfi :39))
 
-(define (print . args) (for-each display args) (newline))
-
 ;; designator can be #f, "latest" or "snapshot"
 (define (get-real-version designator)
   (let-values (((s h b)
@@ -46,12 +44,8 @@
 	     "--prefix" install-prefix
 	     "--version" real-version
 	     "--force" "--auto"))))
-  (let ((new (build-path* (scheme-env-home) "bin"
-                          (format "gauche~a"
-                                  (string-append "@" real-version))))
-        (bin (build-path* install-prefix "bin" "gosh")))
-    (when (file-exists? new) (delete-file new))
-    (create-symbolic-link bin new))
-  (print "Gauche is installed"))
+  (let ((new (scheme-env:binary-path "gauche" real-version)))
+    (scheme-env:create-script-file new install-prefix "gosh" "bin" "lib"))
+  (scheme-env:finish-message "Gauche" real-version))
 
 
