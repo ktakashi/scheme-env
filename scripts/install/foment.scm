@@ -34,10 +34,7 @@
 	(sagittarius process)
 	(tools)
 	(util file)
-	(srfi :26)
 	(srfi :39))
-
-(define (print . args) (for-each display args) (newline))
 
 (define (install version)
   (define real-version (or version "master"))

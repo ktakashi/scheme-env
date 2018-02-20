@@ -33,7 +33,6 @@
 	(sagittarius)
 	(sagittarius process)
 	(tools)
-	(util file)
 	(srfi :39))
 
 (define (install version)
