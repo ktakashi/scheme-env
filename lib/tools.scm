@@ -29,6 +29,7 @@
 ;;;  
 
 #!read-macro=sagittarius/regex
+#!nounbound
 (library (tools)
   (export scheme-env-repository
 	  scheme-env-home
@@ -48,6 +49,7 @@
 	  scheme-env:download-github-archive
 	  scheme-env:extract-archive-port
 	  scheme-env:find-extracted-directory
+	  scheme-env:installation-path
 	  scheme-env:binary-path
 	  scheme-env:create-script-file
 	  scheme-env:finish-message
@@ -57,6 +59,7 @@
 	  (archive)
 	  (util file)
 	  (rfc http)
+	  (rfc gzip)
 	  (srfi :26)
 	  (srfi :39))
 
@@ -111,8 +114,8 @@
 (define (scheme-env:script-file command)
   (scheme-env:download (->scheme-file "scripts" command)))
 
-(define (scheme-env:with-work-directory name proc)
-  (let ((work-dir (build-path* (scheme-env-work-directory) name)))
+(define (scheme-env:with-work-directory name version proc)
+  (let ((work-dir (build-path* (scheme-env-work-directory) name version)))
     (when (file-exists? work-dir) (delete-directory* work-dir))
     (create-directory* work-dir)
     (parameterize ((current-directory work-dir)) (proc work-dir))))
@@ -149,6 +152,9 @@
 	     (path-for-each path (lambda (p t)
 				   (and (eq? t 'directory) (return p)))
 			    :recursive #f))))
+
+(define (scheme-env:installation-path name version)
+  (build-path* (scheme-env-implentations-directory) name version))
 
 (define (scheme-env:binary-path name version)
   (build-path* (scheme-env-home) "bin" (format "~a@~a" name version)))

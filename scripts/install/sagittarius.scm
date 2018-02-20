@@ -32,17 +32,11 @@
 (import (rnrs)
 	(sagittarius)
 	(sagittarius process)
-	(archive)
 	(rfc http)
 	(util file)
 	(tools)
 	(srfi :13)
-	(srfi :26)
 	(srfi :39))
-
-(define (call-with-safe-output-file file proc)
-  (when (file-exists? file) (delete-file file))
-  (call-with-output-file file proc))
 
 (define-constant +butbucket+ "bitbucket.org")
 (define (get-latest-version)
@@ -73,8 +67,8 @@
 	(assertion-violation 'sagittarius
 			     "Failed to download Sagittarius Scheme" s h))
       (call-with-input-file file
-	(lambda (in) (scheme-env:extract-archive-port in 'tar.gz)))
-      :transcoder #f))
+	(lambda (in) (scheme-env:extract-archive-port in 'tar.gz))
+	:transcoder #f)))
   (define (download)
     (cond ((equal? real-version "head") (download-head))
 	  (else (download-version real-version))))
@@ -82,7 +76,7 @@
     (when (equal? real-version "head")
       (run "env" (format "SASH=~a/bin/host-scheme" (scheme-env-home))
 	   "sh" "dist.sh" "gen")))
-  (scheme-env:with-work-directory (build-path "sagittarius" real-version)
+  (scheme-env:with-work-directory "sagittarius" real-version
     (lambda (work-dir)
       (download)
       (let ((path (scheme-env:find-extracted-directory "."))
@@ -94,4 +88,4 @@
 	  (run "make" "install")))))
   (let ((new (scheme-env:binary-path "sagittarius" real-version)))
     (scheme-env:create-script-file new install-prefix "sagittarius" "bin" "lib")
-    (scheme-env:finish-message "Sagittarius Scheme " real-version)))
+    (scheme-env:finish-message "Sagittarius Scheme" real-version)))

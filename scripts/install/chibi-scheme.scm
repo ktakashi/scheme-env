@@ -34,19 +34,17 @@
 	(sagittarius process)
 	(tools)
 	(util file)
-	(srfi :26)
 	(srfi :39))
 
 (define (install version)
   (define real-version (or version "master"))
   (define install-prefix
-    (build-path* (scheme-env-implentations-directory)
-		 "chibi-scheme" real-version))
+    (scheme-env:installation-path "chibi-scheme" real-version))
   (define (download)
     (let ((b (scheme-env:download-github-archive
 	      (format "/ashinn/chibi-scheme/archive/~a.zip" real-version))))
       (scheme-env:extract-archive-port (open-bytevector-input-port b) 'zip)))
-  (scheme-env:with-work-directory (build-path "chibi-scheme" real-version)
+  (scheme-env:with-work-directory "chibi-scheme" real-version
     (lambda (work-dir)
       (download)
       (let ((path (scheme-env:find-extracted-directory "."))

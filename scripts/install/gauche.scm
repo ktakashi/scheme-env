@@ -34,9 +34,8 @@
     (if (member version '(#f "latest" "snapshot"))
       (get-real-version version)
       version))
-  (define install-prefix
-    (build-path* (scheme-env-implentations-directory) "gauche" real-version))
-  (scheme-env:with-work-directory "gauche"
+  (define install-prefix (scheme-env:installation-path "gauche" real-version))
+  (scheme-env:with-work-directory "gauche" real-version
     (lambda (work-dir)
       (let ((get-gauche.sh (get-get-gauche
 			    (build-path* work-dir "get-gauche.sh"))))

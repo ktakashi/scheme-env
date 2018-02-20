@@ -45,9 +45,8 @@
     (let ((b (scheme-env:download-github-archive
 	      (format "/leftmike/foment/archive/~a.zip" real-version))))
       (scheme-env:extract-archive-port (open-bytevector-input-port b) 'zip)))
-  (define dir (build-path "foment" real-version))
-  (define install-dir (build-path (scheme-env-implentations-directory) dir))
-  (scheme-env:with-work-directory dir
+  (define install-dir (scheme-env:installation-path "foment" real-version))
+  (scheme-env:with-work-directory "foment" real-version
     (lambda (work-dir)
       (let ()
 	(download)
