@@ -46,6 +46,7 @@
 	  
 	  scheme-env:with-work-directory
 
+	  scheme-env:download-archive
 	  scheme-env:download-github-archive
 	  scheme-env:extract-archive-port
 	  scheme-env:find-extracted-directory
@@ -127,13 +128,15 @@
   (cond ((#/([^@]+)@(.+)/ arg) => (lambda (m) (values (m 1) (m 2))))
 	(else (values arg #f))))
 
-(define (scheme-env:download-github-archive path
-	  :key (receiver (http-binary-receiver)))
-  (let-values (((s h b) (http-get "github.com" path
-				  :receiver receiver :secure #t)))
+(define (scheme-env:download-archive host path
+	  :key (receiver (http-binary-receiver)) :allow-other-keys opt)
+  (let-values (((s h b) (apply http-get host path :receiver receiver opt)))
     (unless (string=? s "200")
-      (error 'scheme-env:download-github-archive "Failed to download" path))
+      (error 'scheme-env:download-archive "Failed to download" host path))
     b))
+
+(define (scheme-env:download-github-archive path . opt)
+  (apply scheme-env:download-archive "github.com" path :secure #t opt))
 
 (define (scheme-env:extract-archive-port port type)
   (define (destinator e)
