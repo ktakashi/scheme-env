@@ -37,47 +37,54 @@
 	(rfc http)
 	(util file))
 
+;; a bit of duplication
 (define-constant +default-github-repository+
-  "https://raw.githubusercontent.com/ktakashi/scheme-env/master/scripts")
+  "https://raw.githubusercontent.com/ktakashi/scheme-env/master")
+(define scheme-env-repository
+  (cond ((getenv "SCHEME_ENV_REPOSITORY"))
+	(else +default-github-repository+)))
+(define scheme-env-home
+  (or (getenv "SCHEME_ENV_HOME")
+      (assertion-violation 'scheme-env-home "SCHEME_ENV_HOME is not set")))
 
-(define (invoke-command command args)
-  (define repository
-    (cond ((getenv "SCHEME_ENV_REPOSITORY") =>
-	   (lambda (r) (build-path r "scripts")))
-	  (else +default-github-repository+)))
-  (define home
-    (or (getenv "SCHEME_ENV_HOME")
-	(assertion-violation 'scheme-env "SCHEME_ENV_HOME is not set")))
-  (define (->command-file base) (format "~a/~a.scm" base command))
-
-  (define (get-file command-file repository)
-    (define (download m)
-      (let-values (((s h b)
-		    (http-get (m 2) (->command-file (m 3))
-			      :secure (string=? (m 1) "https"))))
-	(unless (string=? s "200")
-	  (assertion-violation 'scheme-env "command not found" command))
-	(call-with-output-file command-file
-	  (lambda (out) (put-string out b)))
-	command-file))
+(define (load-tools-library)
+  (define destination-directory (build-path scheme-env-home "lib"))
+  (define output-file (build-path destination-directory "tools.scm"))
+  (define repository scheme-env-repository)
+  (define (download m)
+    (let-values (((s h b)
+		  (http-get (m 2) (string-append (m 3) "/lib/tools.scm")
+			    :secure (string=? (m 1) "https"))))
+      (unless (string=? s "200")
+	(assertion-violation 'scheme-env "tools library not found"))
+      (call-with-output-file output-file
+	(lambda (out) (put-string out b)))
+      output-file))
+  (define (retrieve-file)
     (cond ((#/(https?):\/\/([^\/]+)(.+)/ repository) =>
 	   (lambda (m)
-	     (cond ((file-exists? command-file) command-file)
+	     (cond ((file-exists? output-file) output-file)
 		   (else (download m)))))
 	  (else
-	   (let ((local (->command-file repository)))
-	     (cond ((file-exists? local)
-		    (copy-file local command-file #t)
-		    command-file)
-		   ((file-exists? command-file) command-file)
+	   (let ((repository-file (build-path* repository "lib" "tools.scm")))
+	     (cond ((file-exists? repository-file)
+		    (copy-file repository-file output-file #t)
+		    output-file)
+		   ((file-exists? repository-file) repository-file)
 		   (else
-		    (assertion-violation 'scheme-env
-					 "command not found in local"
-					 command)))))))
-  (define local-repository (build-path home "scripts"))
+		    (assertion-violation 'load-tools-library
+		      "Tools library file not found in specified repository" 
+		      )))))))
+  (unless (file-exists? destination-directory)
+    (create-directory* destination-directory))
+  (let ((tools (retrieve-file)))
+    (load tools)))
 
-  (unless (file-exists? local-repository) (create-directory* local-repository))
-  (let ((file (get-file (->command-file local-repository) repository))
+(define (invoke-command command args)
+  (load-tools-library)
+  ;; ok we need to specify the library
+  (let ((file (eval `(scheme-env:script-file ',command)
+		    (environment '(rnrs) '(tools))))
 	(env (environment '(only (sagittarius) import library define-library))))
     (load file env)
     (eval `(main ',args) env)))

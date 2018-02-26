@@ -2,16 +2,10 @@
 (import (rnrs)
 	(sagittarius)
 	(sagittarius process)
-	(archive)
 	(rfc http)
 	(util file)
+	(tools)
 	(srfi :39))
-
-(define (print . args) (for-each display args) (newline))
-
-(define scheme-env-home
-  (or (getenv "SCHEME_ENV_HOME")
-      (begin (print "invalid call") (exit -1))))
 
 ;; designator can be #f, "latest" or "snapshot"
 (define (get-real-version designator)
@@ -40,23 +34,17 @@
     (if (member version '(#f "latest" "snapshot"))
       (get-real-version version)
       version))
-  (define install-prefix
-    (build-path* scheme-env-home "implementations" "gauche" real-version))
-  (define work-dir (build-path* scheme-env-home "work" "gauche"))
-  (when (file-exists? work-dir) (delete-directory* work-dir))
-  (create-directory* work-dir)
-  (let ((get-gauche.sh (get-get-gauche (build-path* work-dir "get-gauche.sh"))))
-    (parameterize ((current-directory work-dir))
-      (run get-gauche.sh
-           "--prefix" install-prefix
-           "--version" real-version
-           "--force" "--auto")))
-  (let ((new (build-path* scheme-env-home "bin"
-                          (format "gauche~a"
-                                  (string-append "@" real-version))))
-        (bin (build-path* install-prefix "bin" "gosh")))
-    (when (file-exists? new) (delete-file new))
-    (create-symbolic-link bin new))
-  (print "Gauche is installed"))
+  (define install-prefix (scheme-env:installation-path "gauche" real-version))
+  (scheme-env:with-work-directory "gauche" real-version
+    (lambda (work-dir)
+      (let ((get-gauche.sh (get-get-gauche
+			    (build-path* work-dir "get-gauche.sh"))))
+	(run get-gauche.sh
+	     "--prefix" install-prefix
+	     "--version" real-version
+	     "--force" "--auto"))))
+  (let ((new (scheme-env:binary-path "gauche" real-version)))
+    (scheme-env:create-script-file new install-prefix "gosh" "bin" "lib"))
+  (scheme-env:finish-message "Gauche" real-version))
 
 

@@ -32,76 +32,33 @@
 (import (rnrs)
 	(sagittarius)
 	(sagittarius process)
-	(archive)
 	(rfc http)
-	(rfc gzip)
-	(archive)
 	(util file)
+	(tools)
 	(srfi :13)
-	(srfi :26)
 	(srfi :39))
-
-(define (print . args) (for-each display args) (newline))
-(define scheme-env-home
-  (or (getenv "SCHEME_ENV_HOME")
-      (begin (print "invalid call") (exit -1))))
-(define work-directory (build-path scheme-env-home "work"))
-
-(define (call-with-safe-output-file file proc)
-  (when (file-exists? file) (delete-file file))
-  (call-with-output-file file proc))
-
-(define (destinator e)
-  (let ((name (archive-entry-name e)))
-    (format #t "-- Extracting: ~a~%" name)
-    name))
 
 (define-constant +butbucket+ "bitbucket.org")
 (define (get-latest-version)
-  ;; sad days...
-  #|
   (define version.txt
     "/ktakashi/sagittarius-scheme/downloads/latest-version.txt")
   (let-values (((s h b) (http-get +butbucket+ version.txt :secure #t)))
-    b)
-  |#
-  (define tmp "/tmp/version.txt")
-  (run "curl" "-o" tmp "-L"
-       "https://bitbucket.org/ktakashi/sagittarius-scheme/downloads/latest-version.txt")
-  (let ((r (call-with-input-file tmp get-line)))
-    (delete-file tmp)
-    (string-trim-both r)))
+    (string-trim-both b)))
 
 (define (install version)
   (define real-version (or version (get-latest-version)))
   (define install-prefix
-    (build-path* scheme-env-home "implementations" "sagittarius" real-version))
+    (build-path* (scheme-env-implentations-directory)
+		 "sagittarius" real-version))
   (define (download-head)
-    ;; I don't know why it's failing...
-    #|
-    (let-values (((s h b)
-		  (http-get "github.com"
-			    "/ktakashi/sagittarius-scheme/archive/master.zip"
-			    :receiver (http-binary-receiver)
-			    :secure #t)))
-      (unless (string=? s "200")
-	(assertion-violation 'sagittarius
-			     "Failed to download Sagittarius Scheme" s h))
-      (call-with-archive-input 'zip (open-bytevector-input-port b)
-	(cut extract-all-entries <> :overwrite #t :destinator destinator)))
-    |#
-    (define file "sagittarius.tar.gz")
-    (run "curl" "-o" file "-L"
-	 "https://github.com/ktakashi/sagittarius-scheme/archive/master.tar.gz")
-    (run "tar" "xvf" file))
-  (define (download-version work-dir version)
+    (let ((b (scheme-env:download-github-archive
+	      "/ktakashi/sagittarius-scheme/archive/master.zip")))
+      (scheme-env:extract-archive-port (open-bytevector-input-port b) 'zip)))
+  (define (download-version version)
     (define path
       (format "/ktakashi/sagittarius-scheme/downloads/sagittarius-~a.tar.gz"
 	      version))
     (define file "sagittarius.tar.gz")
-    ;; very unfortunate that we don't support required cipher and so for
-    ;; bitbucket...
-    #|
     (let-values (((s h b)
 		  (http-get +butbucket+ path
 			    :receiver (http-file-receiver file)
@@ -109,43 +66,26 @@
       (unless (string=? s "200")
 	(assertion-violation 'sagittarius
 			     "Failed to download Sagittarius Scheme" s h))
-      )
-    |#
-    (run "curl" "-L" "-o" file (format "https://~a~a" +butbucket+ path))
-    (run "tar" "xvf" file))
-  (define (download dir)
+      (call-with-input-file file
+	(lambda (in) (scheme-env:extract-archive-port in 'tar.gz))
+	:transcoder #f)))
+  (define (download)
     (cond ((equal? real-version "head") (download-head))
-	  (else (download-version dir real-version))))
+	  (else (download-version real-version))))
   (define (run-dist)
     (when (equal? real-version "head")
-      (run "env" (format "SASH=~a/bin/host-scheme" scheme-env-home)
+      (run "env" (format "SASH=~a/bin/host-scheme" (scheme-env-home))
 	   "sh" "dist.sh" "gen")))
-  (let ((work-dir (build-path* work-directory "sagittarius" real-version))
-	(prefix (format "-DCMAKE_INSTALL_PREFIX=~a" install-prefix)))
-    (when (file-exists? work-dir) (delete-directory* work-dir))
-    (create-directory* work-dir)
-    (parameterize ((current-directory work-dir))
-      (download work-dir)
-      (path-for-each "." (lambda (path type)
-			   (case type
-			     ((directory)
-			      (parameterize ((current-directory path))
-				(run-dist)
-				(run "cmake" prefix ".")
-				(run "make")
-				(run "make" "install")))))
-		     :recursive #f))
-    (let ((new (build-path* scheme-env-home "bin"
-			    (format "sagittarius~a"
-				    (string-append "@" real-version))))
-	  (old (build-path* install-prefix "sagittarius"))
-	  (bin (build-path* install-prefix "bin" "sagittarius"))
-	  (lib (build-path* install-prefix "lib")))
-      (call-with-safe-output-file old
-        (lambda (out)
-	  (put-string out "#!/bin/sh\n")
-	  (format out "LD_LIBRARY_PATH=~a ~a \"$@\"" lib bin)))
-      (change-file-mode old #o775)
-      (when (file-exists? new) (delete-file new))
-      (create-symbolic-link old new)
-      (print "Sagittarius Scheme " real-version " is installed"))))
+  (scheme-env:with-work-directory "sagittarius" real-version
+    (lambda (work-dir)
+      (download)
+      (let ((path (scheme-env:find-extracted-directory "."))
+	    (prefix (format "-DCMAKE_INSTALL_PREFIX=~a" install-prefix)))
+	(parameterize ((current-directory path))
+	  (run-dist)
+	  (run "cmake" prefix ".")
+	  (run "make")
+	  (run "make" "install")))))
+  (let ((new (scheme-env:binary-path "sagittarius" real-version)))
+    (scheme-env:create-script-file new install-prefix "sagittarius" "bin" "lib")
+    (scheme-env:finish-message "Sagittarius Scheme" real-version)))

@@ -5,7 +5,7 @@ This will be a simple Scheme implementation switcher.
 # How to install
 
 ```
-$ curl https://raw.githubusercontent.com/ktakashi/scheme-env/master/bin/install.sh | sh
+$ curl https://raw.githubusercontent.com/ktakashi/scheme-env/master/bin/install.sh | bash
 ```
 
 After the installation you need to add the following to your shell
@@ -36,6 +36,7 @@ Currently the followings are the supported implementation
 - Chibi Scheme (chibi-scheme)
 - Sagittarius Scheme (sagittarius)
 - Gauche (gauche)
+- Foment (foment)
 
 You can also specify the version by adding `@` and version number.
 For example:
