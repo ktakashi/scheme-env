@@ -39,6 +39,20 @@ ubuntu_package()
     fi
 }
 
+msys2_package()
+{
+    name=$1
+    # fixup some of the names
+    case $name in
+	libffi*) name=libffi;;
+	libgc*)  name=libgc;;
+	zlib1g*) name=zlib-devel;;
+	libssl*) name=openssl-devel;;
+	g++) return 0;;
+    esac
+    pacman --noconfirm -S --noprogressbar --needed ${name}
+}
+
 linux_command()
 {
     LINUX_DISTRIBUTION=`lsb_release -i`
@@ -51,8 +65,31 @@ linux_command()
 	    exit 1
 	    ;;
     esac
-    
 }    
+
+msys2_command()
+{
+    PACKAGE_COMMAND='msys2_package'
+    # a bit of abuse but hey
+    tmpfile=$(mktemp /tmp/symlink_test.XXXXXX)
+    symlink=${tmpfile}.sym
+    MUST_RESTORE=yes
+    RESTORING_ENVIROMNENT_VARIABLE=`printenv MSYS`
+    for v in 'winsymlinks:native' 'winsymlinks:lnk'
+    do
+	export MSYS=
+	export MSYS=${v}
+	if [ -e ${symlink} ]; then
+	    rm ${symlink}
+	fi
+	# check
+	ln -s ${tmpfile} ${symlink}
+	if [ -h ${symlink} ]; then
+	    break;
+	fi
+    done
+    rm ${tmpfile} ${symlink}
+}
 
 install_package()
 {
@@ -65,9 +102,8 @@ install_package()
 init_commands() {
     PLATFORM_OS=`uname -s`
     case ${PLATFORM_OS} in
-	Linux)
-	    linux_command
-	    ;;
+	Linux)  linux_command ;;
+	*MSYS*) msys2_command ;;
 	*)
 	    echo "************************WARNING*************************"
 	    echo "* Package manager of '${PLATFORM_OS}' is not supported.*"
@@ -105,7 +141,8 @@ echo "Should install packages ... ${SCHEME_ENV_INSTALL_PACKAGE}"
 case ${SCHEME_ENV_INSTALL_PACKAGE} in
     1|yes)
 	# TODO absorb the different names
-	install_package gcc g++ make curl cmake libgc-dev libffi-dev zlib1g-dev
+	install_package gcc g++ make curl cmake libgc-dev \
+			libffi-dev zlib1g-dev libssl-dev
 	;;
 esac
 
@@ -272,6 +309,13 @@ ln -s ${INSTALL_DIR}/sagittarius ${LINK_NAME}
 ln -s ${LINK_NAME} ${SCHEME_ENV_HOME}/bin/default
 ln -s ${LINK_NAME} ${SCHEME_ENV_HOME}/bin/host-scheme
 echo "done!"
+
+case ${MUST_RESTORE} in
+    yes)
+	export MSYS=
+	export MSYS=${RESTORING_ENVIROMNENT_VARIABLE}
+	;;
+esac
 
 cd ${SCHEME_ENV_HOME}
 
