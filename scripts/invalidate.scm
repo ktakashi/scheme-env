@@ -1,6 +1,6 @@
 ;;; -*- mode:scheme; coding:utf-8; -*-
 ;;;
-;;; switch.scm - Scheme environment switch command script
+;;; invalidate.scm - Scheme environment invalidate command script
 ;;;  
 ;;;   Copyright (c) 2018  Takashi Kato  <ktakashi@ymail.com>
 ;;;   
@@ -30,28 +30,21 @@
 
 (import (rnrs)
 	(util file)
-	(sagittarius)
 	(tools))
 
-(define (replace-symlink name)
-  (define default (scheme-env-default-implementation))
-  (define target (build-path (scheme-env-bin-directory) name))
-
-  (cond ((file-exists? target)
-	 (when (file-exists? default) (delete-file default))
-	 (create-symbolic-link target default)
-	 (scheme-env:print "Switched to " name))
-	(else
-	 (scheme-env:print "Implementation " name " doesn't exist"))))
-
 (define (usage)
-  (scheme-env:print "scheme-env switch implementation")
-  (scheme-env:print " Swiching default implementation"))
+  (scheme-env:message "scheme-env invalidate")
+  (scheme-env:message " Invalidates the downloaded scripts")
+  (exit -1))
+
+(define (invalidate)
+  (scheme-env:message "Invalidating scripts ... ")
+  (delete-directory* (build-path (scheme-env-home) "scripts"))
+  (scheme-env:print "done!")
+  (scheme-env:message "Invalidating lib ... ")
+  (delete-directory* (build-path (scheme-env-home) "lib"))
+  (scheme-env:print "done!"))
 
 (define (main args)
-  (when (or (null? args) (not (null? (cdr args)))) (usage))
-  (case (string->symbol (car args))
-    ((default host-scheme scheme-env)
-     (scheme-env:print "System value cannot be specified")
-     (exit -1))
-    (else (replace-symlink (car args)))))
+  (unless (null? args) (usage))
+  (invalidate))
