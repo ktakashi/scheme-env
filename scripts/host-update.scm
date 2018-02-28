@@ -38,11 +38,20 @@
 	(srfi :18))
 
 (define (usage)
-  (scheme-env:message "scheme-env host-update path")
+  (scheme-env:message "scheme-env host-update path-or-name")
   (scheme-env:message " Updates the host Scheme with given path")
   (exit -1))
 
+(define (resolve-path path)
+  (cond ((and (file-exists? path) (absolute-path? path)) path) ;; let's check
+	((and (string-contains path "@") (string-prefix? "sagittarius" path))
+	 (let ((link (build-path (scheme-env-bin-directory) path)))
+	   (and (file-exists? link) link)))
+	(else #f)))
+	 
+
 (define (update path)
+  (define real-path (resolve-path path))
   (define (reader process stdout stderr transcoder)
     (define (make-task in out)
       (define tin (transcoded-port in (native-transcoder)))
@@ -64,10 +73,13 @@
 	    ((> (car new) (car old)) #t)
 	    ((= (car new) (car old)) (loop (cdr new) (cdr old)))
 	    (else #f))))
+  (unless real-path
+    (assertion-violation 'host-update "The given path or name doesn't exist"
+			 path))
   (scheme-env:message "Checking version ... ")
   (let*-values (((out extract) (open-string-output-port))
 		((p thread)
-		 (create-process path
+		 (create-process real-path
 				 '("-e" "(print (sagittarius-version)) (exit)")
 				 :stdout out
 				 :reader reader)))
@@ -81,7 +93,7 @@
       (if (compare-version new-version old-version)
 	  (let ((host (scheme-env-host-implementation)))
 	    (when (file-exists? host) (delete-file host))
-	    (create-symbolic-link path host)
+	    (create-symbolic-link real-path host)
 	    (scheme-env:print "Host Scheme is updated"))
 	  (scheme-env:print "Specified Sagittarius older than current")))))
 
