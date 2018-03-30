@@ -37,6 +37,7 @@ Currently the followings are the supported implementation
 - Sagittarius Scheme (sagittarius)
 - Gauche (gauche)
 - Foment (foment)
+- Chicken (chicken-scheme)
 
 You can also specify the version by adding `@` and version number.
 For example:
@@ -44,6 +45,12 @@ For example:
 ```
 $ scheme-env install sagittarius@0.8.9
 ```
+
+## For Chicken Scheme
+
+The installation process of Chicken Scheme creates 3 aliases, `csi`, `csc` and
+`chicken-scheme` followed by `@{version}` suffix. These are the standard
+entry points for Chicken Scheme.
 
 # Switch implementations
 
