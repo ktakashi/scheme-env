@@ -28,34 +28,28 @@
 ;;;   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;;;  
 
-#!read-macro=sagittarius/regex
 (import (rnrs)
-	(rnrs eval)
 	(sagittarius)
-	(sagittarius regex)
 	(util file)
 	(srfi :13)
 	(tools))
 
-(define (print . args) (for-each display args) (newline))
-
-
 (define (usage)
-  (print "scheme-env remove implementation ...")
-  (print " To check the installed implementation, please use `list` command")
+  (scheme-env:print "scheme-env remove implementation ...")
+  (scheme-env:print " To check the installed implementation, please use `list` command")
   (exit -1))
 
 (define (remove-implementation impl)
   (define bin (build-path (scheme-env-bin-directory) impl))
   (define (err msg . irr)
-    (print msg)
-    (for-each (lambda (i) (print "  irritant: " i)) irr))
+    (scheme-env:print msg)
+    (for-each (lambda (i) (scheme-env:print "  irritant: " i)) irr))
   (define (do-remove symlink)
     (let-values (((name version) (scheme-env:parse-version impl)))
       (delete-directory* (build-path* (scheme-env-implentations-directory)
 				      name version))
       (delete-file symlink)
-      (print impl " has been removed")))
+      (scheme-env:print impl " has been removed")))
   (if (and (string-contains impl "@") (file-exists? bin))
       (let ((host-scheme (absolute-path (scheme-env-host-implementation)))
 	    (target (absolute-path bin)))

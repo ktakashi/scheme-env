@@ -29,24 +29,18 @@
 ;;;  
 
 (import (rnrs)
-	(sagittarius)
 	(util file)
+	(tools)
 	(srfi :13))
 
-(define (print . args) (for-each display args) (newline))
-(define scheme-env-home
-  (or (getenv "SCHEME_ENV_HOME")
-      (begin (print "invalid call") (exit -1))))
-(define bin-directory (build-path scheme-env-home "bin"))
-
 (define (main args)
-  (print "Installed implementations:")
-  (path-for-each bin-directory
+  (scheme-env:print "Installed implementations:")
+  (path-for-each (scheme-env-bin-directory)
 		 (lambda (path type)
 		   (when (string-contains path "@")
 		     (case (string->symbol path)
 		       ((default host-scheme scheme-env))
-		       (else (print "    " path)))))
+		       (else (scheme-env:print "    " path)))))
 		 :recursive #f
 		 :absolute-path #f))
 		      

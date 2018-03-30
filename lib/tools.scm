@@ -54,6 +54,8 @@
 	  scheme-env:binary-path
 	  scheme-env:create-script-file
 	  scheme-env:finish-message
+	  scheme-env:message
+	  scheme-env:print
 	  )
   (import (rnrs)
 	  (sagittarius)
@@ -184,4 +186,8 @@
 (define (scheme-env:finish-message implementation version)
   (format #t "~a@~a is installed ~%" implementation version))
 
+(define (scheme-env:message message)
+  (display message)
+  (flush-output-port (current-output-port)))
+(define (scheme-env:print . args) (for-each display args) (newline))
 )
