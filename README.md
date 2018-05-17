@@ -39,6 +39,7 @@ Currently the followings are the supported implementation
 - Foment (foment)
 - Chicken (chicken-scheme)
 - Larceny (larceny)
+- Chez Scheme (chez)
 
 You can also specify the version by adding `@` and version number.
 For example:

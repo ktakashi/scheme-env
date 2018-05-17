@@ -48,6 +48,7 @@
 
 	  scheme-env:download-archive
 	  scheme-env:download-github-archive
+	  scheme-env:github-latest-version
 	  scheme-env:extract-archive-port
 	  scheme-env:find-extracted-directory
 	  scheme-env:installation-path
@@ -59,6 +60,7 @@
 	  )
   (import (rnrs)
 	  (sagittarius)
+	  (sagittarius regex)
 	  (archive)
 	  (util file)
 	  (rfc http)
@@ -139,6 +141,22 @@
 
 (define (scheme-env:download-github-archive path . opt)
   (apply scheme-env:download-archive "github.com" path :secure #t opt))
+
+(define (scheme-env:github-latest-version path)
+  (define (err msg)
+    (error 'scheme-env:github-latest-version msg))
+  (define (parse-version url)
+    (cond ((#/tag\/(.+?)$/ url) => (lambda (m) (m 1)))
+	  (else (err "Redirecting URL doesn't contain valid path"))))
+  
+  (let-values (((s h c)
+		(http-head "github.com" (format "~a/releases/latest" path)
+			   :secure #t :no-redirect #t)))
+    (if (string=? s "302")
+	(cond ((assoc "location" h) =>
+	       (lambda (slot) (parse-version (cadr slot))))
+	      (else (err "No Location header")))
+	(err "Invalid Http status code"))))
 
 (define (scheme-env:extract-archive-port port type)
   (define (destinator e)
