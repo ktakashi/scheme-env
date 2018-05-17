@@ -52,7 +52,7 @@
 	  scheme-env:find-extracted-directory
 	  scheme-env:installation-path
 	  scheme-env:binary-path
-	  scheme-env:create-script-file
+	  scheme-env:create-script-file scheme-env:call-with-script-file
 	  scheme-env:finish-message
 	  scheme-env:message
 	  scheme-env:print
@@ -165,19 +165,24 @@
   (build-path* (scheme-env-home) "bin" (format "~a@~a" name version)))
 
 (define (scheme-env:create-script-file binary-path prefix name bin lib)
+  (scheme-env:call-with-script-file binary-path prefix name
+    (lambda (out)
+      (let ((bin (build-path* prefix bin name))
+	    (lib (build-path* prefix lib)))
+	(format out "LD_LIBRARY_PATH=~a:${LD_LIBRARY_PATH} ~a \"$@\"~%"
+		lib bin)))))
+
+(define (scheme-env:call-with-script-file binary-path prefix name proc)
   (define (call-with-safe-output-file file proc)
     (when (file-exists? file) (delete-file file))
     (call-with-output-file file proc))
   (let ((new binary-path)
-	(script (build-path* prefix name))
-	(bin (build-path* prefix bin name))
-	(lib (build-path* prefix lib)))
+	(script (build-path* prefix name)))
     (when (file-exists? script) (delete-file script))
     (call-with-output-file script
       (lambda (out)
 	(put-string out "#!/bin/sh\n")
-	(format out "LD_LIBRARY_PATH=~a:${LD_LIBRARY_PATH} ~a \"$@\""
-		lib bin)
+	(proc out)
 	(change-file-mode script #o775)
 	(when (file-exists? new) (delete-file new))
 	(create-symbolic-link script new)

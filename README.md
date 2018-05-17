@@ -38,6 +38,7 @@ Currently the followings are the supported implementation
 - Gauche (gauche)
 - Foment (foment)
 - Chicken (chicken-scheme)
+- Larceny (larceny)
 
 You can also specify the version by adding `@` and version number.
 For example:
