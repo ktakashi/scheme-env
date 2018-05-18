@@ -58,8 +58,8 @@
       ;; FIXME platform
       (download "linux86")
       (let ((path (scheme-env:find-extracted-directory ".")))
-	(create-directory* install-prefix)
-	(copy-directory path install-prefix))))
+	(delete-directory* install-prefix)
+	(rename-file path install-prefix))))
   (let ((new (scheme-env:binary-path "larceny" real-version)))
     (scheme-env:call-with-script-file new install-prefix "run-larceny"
       (lambda (out)
