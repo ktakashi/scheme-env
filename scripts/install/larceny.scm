@@ -57,9 +57,12 @@
     (lambda (work-dir)
       ;; FIXME platform
       (download "linux86")
-      (let ((path (scheme-env:find-extracted-directory ".")))
-	(when (file-exists? install-prefix)
-	  (delete-directory* install-prefix))
+      (let ((path (scheme-env:find-extracted-directory "."))
+	    (implementation-path
+	     (build-path (scheme-env-implentations-directory) "larceny")))
+	(when (file-exists? install-prefix) (delete-directory* install-prefix))
+	(unless (file-exists? implementation-path)
+	  (create-directory* implementation-path))
 	(rename-file path install-prefix))))
   (let ((new (scheme-env:binary-path "larceny" real-version)))
     (scheme-env:call-with-script-file new install-prefix "run-larceny"
