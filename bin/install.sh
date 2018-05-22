@@ -328,7 +328,11 @@ run_scheme()
     maybe_name=\$1
     if [ -f ${SCHEME_ENV_HOME}/bin/\${maybe_name} ]; then
 	shift
-	exec ${SCHEME_ENV_HOME}/bin/\${maybe_name} "\$@"
+	args=\`exec env SCHEME_ENV_HOME=${SCHEME_ENV_HOME} \
+		   ${SCHEME_ENV_HOME}/bin/host-scheme \
+		   ${SCHEME_ENV_HOME}/bin/scheme-env.scm command-line \
+		   \${maybe_name} "\$@"\`
+	exec ${SCHEME_ENV_HOME}/bin/\${maybe_name} \${args}
     fi
     exec ${SCHEME_ENV_HOME}/bin/default "\$@"
 }
