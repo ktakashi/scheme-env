@@ -37,15 +37,19 @@
 (define (convert name version flags)
   (define (add-script script command)
     (if script
-	(string-append command " " script)
+	(string-append command " -program " script)
 	command))
   (define (add-standard standard command)
     (string-append command (case standard
-			     ((r6rs) " -r6")
-			     ((r7rs) " -r7")
+			     ((r6rs) " -r6rs")
+			     ((r7rs) " -r7rs")
 			     (else ""))))
   ;; we ignore the standard flags
   (let ((includes (car flags)))
     (add-script (cadr flags)
      (add-standard (caddr flags)
-      (string-join (map (lambda (p) (string-append "-L" p)) includes))))))
+      (string-append 
+       (if (> (string->number version) 1)
+	   "-I "
+	   "-path ")
+       (string-join includes ":"))))))

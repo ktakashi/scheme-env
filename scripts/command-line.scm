@@ -53,12 +53,12 @@
 
 (define (invoke-converter impl flags)
   (guard (e (else (common-converter flags)))
-    (let-values (((impl ignore) (scheme-env:parse-version impl)))
+    (let-values (((impl version) (scheme-env:parse-version impl)))
       (let ((file (scheme-env:script-file (format "command-line/~a" impl)))
 	    (env (environment '(only (sagittarius)
 				     import library define-library))))
 	(load file env)
-	(eval `(convert ',flags) env)))))
+	(eval `(convert ,impl ,version ',flags) env)))))
 
 ;; for some reason this is not in any library...
 (define (split-when pred lis)
