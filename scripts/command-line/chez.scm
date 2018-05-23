@@ -35,16 +35,12 @@
 	(tools))
 
 (define (convert name version flags)
-  (define (add-script script command)
+  (define (add-script script standard command)
     (if script
-	(string-append command " " script)
+	(string-append command
+		       (if (eq? standard 'r6rs) " --program " " --script ")
+		       script)
 	command))
-  (define (add-standard standard command)
-    (string-append command (case standard
-			     ((r6rs) " -r6")
-			     ((r7rs) " -r7")
-			     (else ""))))
   (let ((includes (car flags)))
-    (add-script (cadr flags)
-     (add-standard (caddr flags)
-      (string-join (map (lambda (p) (string-append "-L" p)) includes))))))
+    (add-script (cadr flags) (caddr flags)
+     (string-append "--libdirs " (string-join includes ":")))))
