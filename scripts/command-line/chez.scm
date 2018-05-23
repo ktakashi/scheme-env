@@ -43,4 +43,6 @@
 	command))
   (let ((includes (car flags)))
     (add-script (cadr flags) (caddr flags)
-     (string-append "--libdirs " (string-join includes ":")))))
+     (if (null? includes)
+	 ""
+	 (string-append "--libdirs " (string-join includes ":"))))))

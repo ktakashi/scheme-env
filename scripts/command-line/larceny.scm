@@ -48,8 +48,10 @@
   (let ((includes (car flags)))
     (add-script (cadr flags)
      (add-standard (caddr flags)
-      (string-append 
-       (if (> (string->number version) 1)
-	   "-I "
-	   "-path ")
-       (string-join includes ":"))))))
+      (if (null? includes)
+	  ""
+	  (string-append 
+	   (if (> (string->number version) 1)
+	       "-I "
+	       "-path ")
+	   (string-join includes ":")))))))
