@@ -88,11 +88,17 @@
 	(values `(,includes ,(or program file) ,(check-standard standard))
 		(if (null? rest) rest (cdr rest)))))))
 
-(define (main args)
-  (when (null? args) (usage))
+;; for invocation from run.scm
+(define (convert-command-line args)
   (let ((impl (car args)))
     (let-values (((flags passing) (parse-command-line  (cdr args))))
       (let ((converted (if (null? flags) "" (invoke-converter impl flags))))
-	(if (null? passing)
-	    (print converted)
-	    (print converted " " (string-join passing)))))))
+	(values converted passing)))))
+
+
+(define (main args)
+  (when (null? args) (usage))
+  (let-values (((converted passing) (convert-command-line args)))
+    (if (null? passing)
+	(print converted)
+	(print converted " " (string-join passing)))))
