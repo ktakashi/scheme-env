@@ -31,19 +31,48 @@
 (import (rnrs)
 	(rnrs eval)
 	(scheme load)
-	(sagittarius process)
-	(tools))
+	(sagittarius ffi)
+	(util file)
+	(tools)
+	(srfi :0)
+	(srfi :13))
+
+(define libc
+  (open-shared-library
+   (cond-expand
+    (cygwin "cygwin1.dll")
+    (osx "libc.dylib")
+    (32bit "libc.so")
+    (else "libc.so.6"))))
+
+(define exec (c-function libc int execv (void* void*)))
+(define default (build-path (scheme-env-bin-directory) "default"))
+
+(define (get-implementation/default name)
+  (let ((path (build-path (scheme-env-bin-directory) name)))
+    (if (file-exists? path)
+	path
+	default)))
+
+(define (->pointer path converted passing)
+  ;; it's rather weird but okay.
+  (let* ((tokens (string-tokenize converted))
+	 (args (list->vector (append tokens passing)))
+	 (len (vector-length args)))
+    (do ((i 0 (+ i 1))
+	 (array (allocate-pointer (* size-of-void* (+ len 2)))))
+	((= i len)
+	 (pointer-set-c-pointer! array 0 path)
+	 array)
+      (pointer-set-c-pointer! array (* (+ i 1) size-of-void*)
+			      (vector-ref args i)))))
 
 (define (main args)
-  (let ((maybe-name (and (not (null? args) (car args)))))
-    (if (and maybe-name
-	     (file-exists? (build-path (scheme-env-bin-directory) maybe-name)))
-	(let ((file (scheme-env:script-file "command-line"))
-	      (env (environment '(only (sagittarius)
-				       import library define-library))))
-	  (load file env)
-	  (let-values (((converted passing)
-			(eval `(convert-command-line ,args) env)))
-	    ;; TBD how to call exec?
-	    )
-	  ))))
+  (define env (environment '(only (sagittarius) import library define-library)))
+  (define command-line (scheme-env:script-file "command-line"))
+  (let* ((maybe-name (and (not (null? args)) (car args)))
+	 (path (get-implementation/default (or maybe-name "default"))))
+    (load command-line env)
+    (let-values (((converted passing)
+		  (eval `(convert-command-line ',args) env)))
+      (exec path (->pointer path converted passing)))))

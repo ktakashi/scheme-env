@@ -67,7 +67,7 @@
   (let ((new (scheme-env:binary-path "larceny" real-version)))
     (scheme-env:call-with-script-file new install-prefix "run-larceny"
       (lambda (out)
-	(format out "LARCENY_ROOT=~a sh ~a/larceny \"$@\"~%"
+	(format out "exec env LARCENY_ROOT=~a sh ~a/larceny \"$@\"~%"
 		install-prefix
 		install-prefix)))
     (scheme-env:finish-message "Larceny" real-version)))

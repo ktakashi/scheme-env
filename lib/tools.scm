@@ -187,7 +187,7 @@
     (lambda (out)
       (let ((bin (build-path* prefix bin name))
 	    (lib (build-path* prefix lib)))
-	(format out "LD_LIBRARY_PATH=~a:${LD_LIBRARY_PATH} ~a \"$@\"~%"
+	(format out "exec env LD_LIBRARY_PATH=~a:${LD_LIBRARY_PATH} ~a \"$@\"~%"
 		lib bin)))))
 
 (define (scheme-env:call-with-script-file binary-path prefix name proc)

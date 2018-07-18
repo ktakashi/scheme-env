@@ -322,28 +322,6 @@ cd ${SCHEME_ENV_HOME}
 echo -n "Installing execution script ... "
 cat <<EOF > bin/scheme-env
 #!/bin/sh
-
-run_scheme() 
-{
-    maybe_name=\$1
-    if [ -f ${SCHEME_ENV_HOME}/bin/\${maybe_name} ]; then
-	shift
-	args=\`exec env SCHEME_ENV_HOME=${SCHEME_ENV_HOME} \
-		   ${SCHEME_ENV_HOME}/bin/host-scheme \
-		   ${SCHEME_ENV_HOME}/bin/scheme-env.scm command-line \
-		   \${maybe_name} "\$@"\`
-	exec ${SCHEME_ENV_HOME}/bin/\${maybe_name} \${args}
-    fi
-    exec ${SCHEME_ENV_HOME}/bin/default "\$@"
-}
-
-case \$1 in
-    run)
-	shift
-	run_scheme "\$@"
-	;;
-esac
-
 exec env SCHEME_ENV_HOME=${SCHEME_ENV_HOME} \
      ${SCHEME_ENV_HOME}/bin/host-scheme \
      ${SCHEME_ENV_HOME}/bin/scheme-env.scm "\$@"
