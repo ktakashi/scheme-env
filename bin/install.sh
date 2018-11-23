@@ -112,6 +112,10 @@ init_commands() {
 	    SCHEME_ENV_INSTALL_PACKAGE=no
 	    ;;
     esac
+    case ${PLATFORM_OS} in
+	Darwin) LD_LIBRARY_PATH_NAME=DYLD_LIBRARY_PATH ;;
+	*)      LD_LIBRARY_PATH_NAME=LD_LIBRARY_PATH ;;
+    esac
 }
 
 usage()
@@ -293,7 +297,7 @@ remove_if_exists ${INSTALL_DIR}/sagittarius ${SCHEME_ENV_HOME}/bin/sagittarius
 echo -n "Creating symblic links ... "
 cat << EOF > ${INSTALL_DIR}/sagittarius
 #!/bin/sh
-LD_LIBRARY_PATH=${INSTALL_DIR}/lib ${INSTALL_DIR}/bin/sagittarius "\$@"
+${LD_LIBRARY_PATH_NAME}=${INSTALL_DIR}/lib ${INSTALL_DIR}/bin/sagittarius "\$@"
 EOF
 
 chmod +x ${INSTALL_DIR}/sagittarius

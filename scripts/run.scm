@@ -41,7 +41,7 @@
   (open-shared-library
    (cond-expand
     (cygwin "cygwin1.dll")
-    (osx "libc.dylib")
+    (darwin "libSystem.dylib")
     (32bit "libc.so")
     (else "libc.so.6"))))
 
