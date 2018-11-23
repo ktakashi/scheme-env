@@ -182,13 +182,18 @@
 (define (scheme-env:binary-path name version)
   (build-path* (scheme-env-home) "bin" (format "~a@~a" name version)))
 
+(define *ld-library-path-name*
+  (cond-expand
+   (darwin "DYLD_LIBRARY_PATH")
+   (else "LD_LIBRARY_PATH")))
+
 (define (scheme-env:create-script-file binary-path prefix name bin lib)
   (scheme-env:call-with-script-file binary-path prefix name
     (lambda (out)
       (let ((bin (build-path* prefix bin name))
 	    (lib (build-path* prefix lib)))
-	(format out "exec env LD_LIBRARY_PATH=~a:${LD_LIBRARY_PATH} ~a \"$@\"~%"
-		lib bin)))))
+	(format out "exec env ~a=~a:${~a} ~a \"$@\"~%"
+		*ld-library-path-name* lib *ld-library-path-name* bin)))))
 
 (define (scheme-env:call-with-script-file binary-path prefix name proc)
   (define (call-with-safe-output-file file proc)

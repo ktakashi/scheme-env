@@ -56,7 +56,7 @@
   (scheme-env:with-work-directory "larceny" real-version
     (lambda (work-dir)
       ;; FIXME platform
-      (download "linux86")
+      (download (cond-expand (darwin "macosx") (else "linux86")))
       (let ((path (scheme-env:find-extracted-directory "."))
 	    (implementation-path
 	     (build-path (scheme-env-implentations-directory) "larceny")))
