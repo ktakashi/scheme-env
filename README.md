@@ -54,6 +54,13 @@ The installation process of Chicken Scheme creates 3 aliases, `csi`, `csc` and
 `chicken-scheme` followed by `@{version}` suffix. These are the standard
 entry points for Chicken Scheme.
 
+## macOS
+
+On macOS, there are following prerequisites:
+
+- Installing Xcode (For Chicken Scheme)
+- Installing [XQuartz](https://www.xquartz.org/) (For Chez Scheme)
+
 # Switch implementations
 
 To swich default implementation, you can run the following command
