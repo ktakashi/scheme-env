@@ -55,8 +55,8 @@
       (download)
       (let ((path (scheme-env:find-extracted-directory "."))
 	    (prefix (format "PREFIX=~a" install-prefix))
-	    ;; FIXME
-	    (platform (format "PLATFORM=linux")))
+	    (platform (format "PLATFORM=~a"
+			      (cond-expand (darwin "macosx") (else "linux")))))
 	(parameterize ((current-directory path))
 	  (run "make" prefix platform)
 	  (run "make" prefix platform "install")))))

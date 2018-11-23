@@ -55,7 +55,6 @@
       (scheme-env:extract-archive-port (open-bytevector-input-port b) 'tar.gz)))
   (scheme-env:with-work-directory "larceny" real-version
     (lambda (work-dir)
-      ;; FIXME platform
       (download (cond-expand (darwin "macosx") (else "linux86")))
       (let ((path (scheme-env:find-extracted-directory "."))
 	    (implementation-path
