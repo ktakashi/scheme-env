@@ -1,6 +1,6 @@
 ;;; -*- mode:scheme; coding:utf-8; -*-
 ;;;
-;;; command-line/sagittarius.scm - Sagittarius command-line command script
+;;; command-line/larceny.scm - Larceny command-line command script
 ;;;  
 ;;;   Copyright (c) 2018  Takashi Kato  <ktakashi@ymail.com>
 ;;;   

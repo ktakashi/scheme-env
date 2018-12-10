@@ -60,6 +60,16 @@
 	(load file env)
 	(eval `(convert ,impl ,version ',flags) env)))))
 
+(define (adjust-argument impl passing)
+  (guard (e (else passing))
+    (let-values (((impl version) (scheme-env:parse-version impl)))
+      (let ((file (scheme-env:script-file
+		   (format "command-line/adjust/~a" impl)))
+	    (env (environment '(only (sagittarius)
+				     import library define-library))))
+	(load file env)
+	(eval `(adjust ,impl ,version ',passing) env)))))
+
 ;; for some reason this is not in any library...
 (define (split-when pred lis)
   (let loop ((lis lis) (r '()))
@@ -91,8 +101,9 @@
 ;; for invocation from run.scm
 (define (convert-command-line args)
   (let ((impl (car args)))
-    (let-values (((flags passing) (parse-command-line  (cdr args))))
-      (let ((converted (if (null? flags) "" (invoke-converter impl flags))))
+    (let*-values (((flags passing) (parse-command-line  (cdr args))))
+      (let ((converted (if (null? flags) "" (invoke-converter impl flags)))
+	    (passing (if (null? passing) '() (adjust-argument impl passing))))
 	(values converted passing)))))
 
 
