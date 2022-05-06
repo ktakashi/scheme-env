@@ -35,7 +35,7 @@
 	(srfi :13))
 
 (define (main args)
-  (with-args (cdr args)
+  (with-args args
       ((list? (#\l "list") #f #f)
        . ignore)
     (unless list? (scheme-env:print "Installed implementations:"))
