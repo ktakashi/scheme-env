@@ -31,16 +31,23 @@
 (import (rnrs)
 	(util file)
 	(tools)
+	(getopt)
 	(srfi :13))
 
 (define (main args)
-  (scheme-env:print "Installed implementations:")
-  (path-for-each (scheme-env-bin-directory)
-		 (lambda (path type)
-		   (when (string-contains path "@")
-		     (case (string->symbol path)
-		       ((default host-scheme scheme-env))
-		       (else (scheme-env:print "    " path)))))
-		 :recursive #f
-		 :absolute-path #f))
+  (with-args (cdr args)
+      ((list? (#\l "list") #f #f)
+       . ignore)
+    (unless list? (scheme-env:print "Installed implementations:"))
+    (path-for-each (scheme-env-bin-directory)
+		   (lambda (path type)
+		     (when (string-contains path "@")
+		       (case (string->symbol path)
+			 ((default host-scheme scheme-env))
+			 (else
+			  (if list?
+			      (scheme-env:print path)
+			      (scheme-env:print "    " path))))))
+		   :recursive #f
+		   :absolute-path #f)))
 		      
