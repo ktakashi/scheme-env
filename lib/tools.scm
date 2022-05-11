@@ -46,6 +46,14 @@
 	  
 	  scheme-env:with-work-directory
 
+	  scheme-env:call-with-ftp-connection
+
+	  scheme-env:latest-version-from-ftp
+	  scheme-env:download-ftp-archive
+	  scheme-env:semantic-version-compare
+	  scheme-env:semantic-version<?
+	  scheme-env:semantic-version>?
+
 	  scheme-env:download-archive
 	  scheme-env:download-github-archive
 	  scheme-env:github-latest-version
@@ -63,11 +71,12 @@
 	  (sagittarius regex)
 	  (archive)
 	  (util file)
+	  (rfc ftp)
 	  (rfc http)
 	  (rfc gzip)
+	  (srfi :1)
 	  (srfi :26)
 	  (srfi :39))
-
 (define-constant +default-github-repository+
   "https://raw.githubusercontent.com/ktakashi/scheme-env/master")
 (define (scheme-env-home)
@@ -124,6 +133,48 @@
     (when (file-exists? work-dir) (delete-directory* work-dir))
     (create-directory* work-dir)
     (parameterize ((current-directory work-dir)) (proc work-dir))))
+
+(define (scheme-env:call-with-ftp-connection host path proc . args)
+  (define ftp-conn (apply ftp-login host args))
+  (ftp-chdir ftp-conn path)
+  (guard (e (else (ftp-quit ftp-conn) (raise e)))
+    (let ((r (proc ftp-conn)))
+      (ftp-quit ftp-conn)
+      r)))
+
+(define (scheme-env:latest-version-from-ftp ftp-conn version-pattern compare)
+  (define (extract-version name)
+    (cond ((version-pattern name) => (lambda (m) (m 1)))
+	  (else #f)))
+  
+  (let ((r (filter-map extract-version (ftp-name-list ftp-conn))))
+    (when (null? r)
+      (assertion-violation 'scheme-env:version-from-ftp
+			   "Couldn't determine the latest version from names"
+			   version-pattern))
+    (car (list-sort compare r))))
+
+(define (scheme-env:download-ftp-archive ftp-conn file)
+  (ftp-get ftp-conn file))
+
+;; semantic compare
+(define (scheme-env:semantic-version-compare v1 v2)
+  (let loop ((v1* (string-split v1 "\\."))
+	     (v2* (string-split v2 "\\.")))
+    (cond ((and (null? v1*) (null? v2*)) 0)
+	  ((null? v1*) -1)
+	  ((null? v2*) 1)
+	  (else
+	   (let ((r (compare (string->number (car v1*))
+			     (string->number (car v2*)))))
+	     (if (zero? r)
+		 (loop (cdr v1*) (cdr v2*))
+		 r))))))
+
+(define (scheme-env:semantic-version<? v1 v2)
+  (< (scheme-env:semantic-version-compare v1 v2) 0))
+(define (scheme-env:semantic-version>? v1 v2)
+  (> (scheme-env:semantic-version-compare v1 v2) 0))
 
 ;; separated by @
 ;; name@version -> (values name version)
