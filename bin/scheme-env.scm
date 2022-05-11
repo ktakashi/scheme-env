@@ -98,7 +98,7 @@
       (print "scheme-env command [OPTIONS]")
       (let ((env (load-file (car maybe-command))))
 	;; May work if I wasn't lazy
-	(eval '(help) env)))
+	(eval '(usage) env)))
   (exit -1))
 
 (define (main args)

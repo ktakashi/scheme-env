@@ -71,9 +71,9 @@
 	(pointer-set-c-pointer! array 0 path)
 	array)))
 
-(define (help)
+(define (usage)
   (define p scheme-env:print)
-  (p "run [implementation] [options ...]")
+  (p "scheme-env run [implementation] [options ...]")
   (p)
   (p "Description")
   (p " Executes the [implementation] with the given [options ...].")
