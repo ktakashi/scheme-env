@@ -80,21 +80,29 @@
   (let ((tools (retrieve-file)))
     (load tools)))
 
-(define (invoke-command command args)
+(define (load-file command)
   (load-tools-library)
   ;; ok we need to specify the library
   (let ((file (eval `(scheme-env:script-file ',command)
 		    (environment '(rnrs) '(tools))))
 	(env (environment '(only (sagittarius) import library define-library))))
     (load file env)
+    env))
+
+(define (invoke-command command args)
+  (let ((env (load-file command)))
     (eval `(main ',args) env)))
 
-(define (usage)
-  (print "scheme-env command [OPTIONS]")
+(define (usage maybe-command)
+  (if (null? maybe-command)
+      (print "scheme-env command [OPTIONS]")
+      (let ((env (load-file (car maybe-command))))
+	;; May work if I wasn't lazy
+	(eval '(help) env)))
   (exit -1))
 
 (define (main args)
-  (when (null? (cdr args)) (usage))
+  (when (null? (cdr args)) (usage '()))
   (case (string->symbol (cadr args))
-    ((help) (usage))
+    ((help) (usage (cddr args)))
     (else => (lambda (command) (invoke-command command (cddr args))))))
