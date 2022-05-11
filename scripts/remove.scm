@@ -35,8 +35,12 @@
 	(tools))
 
 (define (usage)
-  (scheme-env:print "scheme-env remove implementation ...")
-  (scheme-env:print " To check the installed implementation, please use `list` command")
+  (define p scheme-env:print)
+  (p "scheme-env remove implementation ...")
+  (p)
+  (p "Description")
+  (p " Removes specified implementations")
+  (p " To check the installed implementations, please use `list` command")
   (exit -1))
 
 (define (remove-implementation impl)

@@ -45,8 +45,11 @@
 	 (scheme-env:print "Implementation " name " doesn't exist"))))
 
 (define (usage)
-  (scheme-env:print "scheme-env switch implementation")
-  (scheme-env:print " Swiching default implementation"))
+  (define p scheme-env:print)
+  (p "scheme-env switch <implementation>")
+  (p)
+  (p "Description")
+  (p " Swiching default implementation to  <implementation>"))
 
 (define (main args)
   (when (or (null? args) (not (null? (cdr args)))) (usage))

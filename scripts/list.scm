@@ -34,6 +34,17 @@
 	(getopt)
 	(srfi :13))
 
+(define (usage)
+  (define p scheme-env:print)
+  (p "scheme-env list [-l]")
+  (p)
+  (p "Description")
+  (p " Lists all the installed implementations")
+  (p)
+  (p " -l,--list")
+  (p "  Do not put any excess messaage.")
+  (exit -1))
+
 (define (main args)
   (with-args args
       ((list? (#\l "list") #f #f)

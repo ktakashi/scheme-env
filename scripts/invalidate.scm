@@ -33,8 +33,11 @@
 	(tools))
 
 (define (usage)
-  (scheme-env:message "scheme-env invalidate")
-  (scheme-env:message " Invalidates the downloaded scripts")
+  (define p scheme-env:print)
+  (p "scheme-env invalidate")
+  (p)
+  (p "Description")
+  (p " Invalidates the downloaded scripts")
   (exit -1))
 
 (define (invalidate)
