@@ -50,7 +50,9 @@
       (download)
       (let ((path (scheme-env:find-extracted-directory ".")))
 	(parameterize ((current-directory path))
-	  (run "sh" "configure" (format "--installprefix=~a" install-prefix))
+	  (run "sh" "configure"
+	       "--threads"
+	       (format "--installprefix=~a" install-prefix))
 	  (run "make")
 	  (run "make" "install")))))
   (let ((new (scheme-env:binary-path "chez" real-version)))
