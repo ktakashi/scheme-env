@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -o pipefail
+
 # installing host Scheme implementation (latest Sagittarius) and scheme env
 SCHEME_ENV_INSTALL_PACKAGE=${SCHEME_ENV_INSTALL_PACKAGE:-"yes"}
 
@@ -187,13 +189,18 @@ SAGITTARIUS_DIR=$SCHEME_ENV_HOME/implementations/sagittarius
 INSTALL_DIR=${SAGITTARIUS_DIR}/${VERSION}
 
 SKIP_HOST_INSTALL=no
+installed_version=no
 if [ -f ${SCHEME_ENV_HOME}/bin/host-scheme ]; then
     installed_version=`${SCHEME_ENV_HOME}/bin/host-scheme -v`
-    case ${installed_version} in
-	*${VERSION}*) SKIP_HOST_INSTALL=yes ;;
-	*) ;;
-    esac
+elif [ -d ${SCHEME_ENV_HOME}/implementations/sagittarius/${VERSION} ]; then
+    installed_version=`${SCHEME_ENV_HOME}/implementations/sagittarius/${VERSION}/bin/sagittarius -v`
 fi
+
+echo "Installed version: ${installed_version}"
+case ${installed_version} in
+    *${VERSION}*) SKIP_HOST_INSTALL=yes ;;
+    *) ;;
+esac
 
 progress()
 {
@@ -237,6 +244,14 @@ progress()
     fi
 }
 
+check_status()
+{
+    if [ $? -ne 0 ]; then
+	tail -n 20 build.log
+	exit -1
+    fi
+}
+
 install_host_scheme()
 {
     echo -n "Downloading Sagittarius ${VERSION} ... "
@@ -255,7 +270,9 @@ install_host_scheme()
     echo "done!"
 
     make -j8 2>&1    | tee -a build.log | progress "Building host Sagittarius  "
+    check_status
     make install 2>&1| tee -a build.log | progress "Installing host Sagittarius"
+    check_status
 
     HOST_SCHEME=`pwd`
     # back to work
