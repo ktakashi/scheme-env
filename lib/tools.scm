@@ -65,6 +65,19 @@
 	  scheme-env:finish-message
 	  scheme-env:message
 	  scheme-env:print
+
+	  ;; conditions
+	  scheme-env-error
+	  scheme-env-condition?
+
+	  scheme-env-command-not-found?
+	  scheme-env-condition-command
+
+	  scheme-env-download-condition?
+	  scheme-env-condition-host
+	  scheme-env-condition-path
+
+	  scheme-env-github-condition?
 	  )
   (import (rnrs)
 	  (sagittarius)
@@ -79,9 +92,64 @@
 	  (srfi :39))
 (define-constant +default-github-repository+
   "https://raw.githubusercontent.com/ktakashi/scheme-env/master")
+
+(define-condition-type &scheme-env-condition &condition
+  make-scheme-env-condition scheme-env-condition?)
+
+(define-condition-type &scheme-env-command-not-found &scheme-env-condition
+  make-scheme-env-command-not-found scheme-env-command-not-found?
+  (command scheme-env-condition-command))
+
+(define-condition-type &scheme-env-file-not-found &scheme-env-condition
+  make-scheme-env-file-not-found scheme-env-file-not-found?
+  (file scheme-env-condition-file))
+
+(define-condition-type &scheme-env-download-condition &scheme-env-condition
+  make-scheme-env-download-condition scheme-env-download-condition?
+  (host scheme-env-condition-host)
+  (path scheme-env-condition-path))
+
+(define-condition-type &scheme-env-github-condition &scheme-env-condition
+  make-scheme-env-github-condition scheme-env-github-condition?)
+
+(define (scheme-env-error who message . irr)
+  (raise (condition
+	  (make-error)
+	  (make-who-condition who)
+	  (make-scheme-env-condition)
+	  (make-message-condition message)
+	  (make-irritants-condition irr))))
+
+(define (scheme-env-download-error host path message)
+  (raise (condition
+	  (make-error)
+	  (make-who-condition 'scheme-env)
+	  (make-scheme-env-download-condition host path)
+	  (make-message-condition message))))
+
+(define (scheme-env-github-error message)
+  (raise (condition
+	  (make-error)
+	  (make-who-condition 'scheme-env)
+	  (make-scheme-env-github-condition)
+	  (make-message-condition message))))
+
+(define (scheme-env-command-not-found-error command message)
+  (raise (condition
+	  (make-error)
+	  (make-who-condition 'scheme-env)
+	  (make-scheme-env-command-not-found command)
+	  (make-message-condition message))))
+(define (scheme-env-file-not-found-error file message)
+  (raise (condition
+	  (make-error)
+	  (make-who-condition 'scheme-env)
+	  (make-scheme-env-file-not-found file)
+	  (make-message-condition message))))
+
 (define (scheme-env-home)
   (or (getenv "SCHEME_ENV_HOME")
-      (assertion-violation 'scheme-env-home "SCHEME_ENV_HOME is not set")))
+      (scheme-env-error 'scheme-env-home "SCHEME_ENV_HOME is not set")))
 (define (scheme-env-repository)
   (cond ((getenv "SCHEME_ENV_REPOSITORY"))
 	(else +default-github-repository+)))
@@ -103,7 +171,7 @@
 		  (http-get (m 2) (string-append (m 3) "/" file)
 			    :secure (string=? (m 1) "https"))))
       (unless (string=? s "200")
-	(assertion-violation 'scheme-env "file not found" file))
+	(scheme-env-file-not-found-error file "file not found"))
       (call-with-output-file output-file
 	(lambda (out) (put-string out b)))
       output-file))
@@ -120,13 +188,14 @@
 		  output-file)
 		 ((file-exists? repository-file) repository-file)
 		 (else
-		  (assertion-violation 'scheme-env:download
-				       "File not found in specified repository"
-				       file)))))))
+		  (scheme-env-file-not-found-error file
+		    "File not found in specified repository")))))))
 
 (define (->scheme-file pre part) (format "~a/~a.scm" pre part))
 (define (scheme-env:script-file command)
-  (scheme-env:download (->scheme-file "scripts" command)))
+  (guard (e (else
+	     (scheme-env-command-not-found-error command "no such command")))
+    (scheme-env:download (->scheme-file "scripts" command))))
 
 (define (scheme-env:with-work-directory name version proc)
   (let ((work-dir (build-path* (scheme-env-work-directory) name version)))
@@ -149,9 +218,9 @@
   
   (let ((r (filter-map extract-version (ftp-name-list ftp-conn))))
     (when (null? r)
-      (assertion-violation 'scheme-env:version-from-ftp
-			   "Couldn't determine the latest version from names"
-			   version-pattern))
+      (scheme-env-error 'scheme-env:version-from-ftp
+			"Couldn't determine the latest version from names"
+			version-pattern))
     (car (list-sort compare r))))
 
 (define (scheme-env:download-ftp-archive ftp-conn file)
@@ -187,15 +256,14 @@
 	  :key (receiver (http-binary-receiver)) :allow-other-keys opt)
   (let-values (((s h b) (apply http-get host path :receiver receiver opt)))
     (unless (string=? s "200")
-      (error 'scheme-env:download-archive "Failed to download" host path))
+      (scheme-env-download-error host path "Failed to download"))
     b))
 
 (define (scheme-env:download-github-archive path . opt)
   (apply scheme-env:download-archive "github.com" path :secure #t opt))
 
 (define (scheme-env:github-latest-version path)
-  (define (err msg)
-    (error 'scheme-env:github-latest-version msg))
+  (define (err msg) (scheme-env-github-error msg))
   (define (parse-version url)
     (cond ((#/tag\/(.+?)$/ url) => (lambda (m) (m 1)))
 	  (else (err "Redirecting URL doesn't contain valid path"))))

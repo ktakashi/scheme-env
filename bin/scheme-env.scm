@@ -81,13 +81,19 @@
     (load tools)))
 
 (define (load-file command)
+  (define env (environment '(only (sagittarius) import library define-library)))
   (load-tools-library)
-  ;; ok we need to specify the library
-  (let ((file (eval `(scheme-env:script-file ',command)
-		    (environment '(rnrs) '(tools))))
-	(env (environment '(only (sagittarius) import library define-library))))
-    (load file env)
-    env))
+  (let ((command-not-found? (eval 'scheme-env-command-not-found?
+				  (environment '(tools)))))
+    (define tools-env (environment '(rnrs) '(tools)))
+    (guard (e ((command-not-found? e)
+	       (print "No such command: " command)
+	       (exit -1))
+	      (else (raise e)))
+      ;; ok we need to specify the library
+      (let ((file (eval `(scheme-env:script-file ',command) tools-env)))
+	(load file env)
+	env))))
 
 (define (invoke-command command args)
   (let ((env (load-file command)))
