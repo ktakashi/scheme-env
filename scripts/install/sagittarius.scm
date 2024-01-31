@@ -76,6 +76,8 @@
     (when (equal? real-version "head")
       (run "env" (format "SASH=~a/bin/host-scheme" (scheme-env-home))
 	   "sh" "dist.sh" "gen")))
+  (define (cache-env)
+    (format "SAGITTARIUS_CACHE_DIR=~a" (scheme-env-tmp-directory)))
   (scheme-env:with-work-directory "sagittarius" real-version
     (lambda (work-dir)
       (download)
@@ -87,5 +89,6 @@
 	  (run "make")
 	  (run "make" "install")))))
   (let ((new (scheme-env:binary-path "sagittarius" real-version)))
-    (scheme-env:create-script-file new install-prefix "sagittarius" "bin" "lib")
+    (scheme-env:create-script-file/env
+     new install-prefix "sagittarius" "bin" "lib" (cache-env))
     (scheme-env:finish-message "Sagittarius Scheme" real-version)))

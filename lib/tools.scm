@@ -36,6 +36,7 @@
 	  scheme-env-bin-directory
 	  scheme-env-work-directory
 	  scheme-env-implentations-directory
+	  scheme-env-tmp-directory
 	  scheme-env-default-implementation
 	  scheme-env-host-implementation
 
@@ -61,7 +62,8 @@
 	  scheme-env:find-extracted-directory
 	  scheme-env:installation-path
 	  scheme-env:binary-path
-	  scheme-env:create-script-file scheme-env:call-with-script-file
+	  scheme-env:create-script-file scheme-env:create-script-file/env
+	  scheme-env:call-with-script-file
 	  scheme-env:finish-message
 	  scheme-env:message
 	  scheme-env:print
@@ -155,6 +157,7 @@
 	(else +default-github-repository+)))
 (define (scheme-env-bin-directory) (build-path (scheme-env-home) "bin"))
 (define (scheme-env-work-directory) (build-path (scheme-env-home) "work"))
+(define (scheme-env-tmp-directory) (build-path (scheme-env-home) "tmp"))
 (define (scheme-env-implentations-directory)
   (build-path (scheme-env-home) "implementations"))
 (define (scheme-env-default-implementation)
@@ -313,6 +316,14 @@
 	    (lib (build-path* prefix lib)))
 	(format out "exec env ~a=~a:${~a} ~a \"$@\"~%"
 		*ld-library-path-name* lib *ld-library-path-name* bin)))))
+
+(define (scheme-env:create-script-file/env binary-path prefix name bin lib env)
+  (scheme-env:call-with-script-file binary-path prefix name
+    (lambda (out)
+      (let ((bin (build-path* prefix bin name))
+	    (lib (build-path* prefix lib)))
+	(format out "exec env ~a=~a:${~a} ~a ~a \"$@\"~%"
+		*ld-library-path-name* lib *ld-library-path-name* env bin)))))
 
 (define (scheme-env:call-with-script-file binary-path prefix name proc)
   (define (call-with-safe-output-file file proc)

@@ -23,6 +23,7 @@ mkdir -p ${SCHEME_ENV_HOME}/bin
 mkdir -p ${SCHEME_ENV_HOME}/scripts
 mkdir -p ${SCHEME_ENV_HOME}/implementations
 mkdir -p ${SCHEME_ENV_HOME}/work
+mkdir -p ${SCHEME_ENV_HOME}/tmp
 
 cd ${SCHEME_ENV_HOME}
 
