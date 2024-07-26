@@ -31,6 +31,7 @@
 (import (rnrs)
 	(rnrs eval)
 	(scheme load)
+	(only (sagittarius) absolute-path)
 	(sagittarius ffi)
 	(util file)
 	(tools)
@@ -91,14 +92,45 @@
   (p " -r,--standard  [r6rs|r7rs]")
   (p "      Scheme standard to be followed"))
 
+(define (expand-default-impl)
+  (define offset (+ (string-length (scheme-env-implentations-directory)) 1))
+  (define default-path (build-path (scheme-env-bin-directory) "default"))
+  (define (relative->name rel-path)
+    (let ((name&ver (cond ((string-index-right rel-path #\/) =>
+			   (lambda (index) (substring rel-path 0 index))))))
+      (cond ((string-index name&ver #\/) =>
+	     (lambda (index)
+	       (string-append
+		(substring name&ver 0 index)
+		"@"
+		(substring name&ver (+ index 1) (string-length name&ver))))))))
+  (let* ((abs-path (absolute-path default-path))
+	 (rel-path (substring abs-path offset (string-length abs-path))))
+    (relative->name rel-path)))
+
 (define (main args)
+  (define sitelib (scheme-env-sitelib-directory))
   (define env (environment '(only (sagittarius) import library define-library)))
   (define (parse-command-line maybe-name args)
-    (if maybe-name
-	(eval `(convert-command-line ',args) env)
-	(values #f '())))
+    (define (adjust-args maybe-name args)
+      (let-values (((name args) (if maybe-name
+				    (values maybe-name (cdr args))
+				    (values (expand-default-impl) args))))
+	(let ((only-name (cond ((string-index name #\@) =>
+				(lambda (index) (substring name 0 index))))))
+	  ;; A bit implementation specific, but
+	  ;; my main implementation, i.e. Sagittarius, prepend the last
+	  ;; load path option, so do it like that
+	  (cons* name
+		 "-l" sitelib
+		 "-l" (build-path sitelib only-name)
+		 args))))
+    (let ((adjusted-args (adjust-args maybe-name args)))
+      (eval `(convert-command-line ',adjusted-args) env)))
   (define command-line (scheme-env:script-file "command-line"))
-  (let* ((maybe-name (and (not (null? args)) (car args)))
+  (let* ((maybe-name (and (not (null? args))
+			  (not (eqv? (string-ref (car args) 0) #\-))
+			  (car args)))
 	 (path (get-implementation/default (or maybe-name "default"))))
     (load command-line env)
     (let-values (((converted passing) (parse-command-line maybe-name args)))
