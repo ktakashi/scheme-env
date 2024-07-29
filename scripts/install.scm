@@ -36,8 +36,6 @@
 	(scheme load)
 	(tools))
 
-(define (print . args) (for-each display args) (newline))
-
 (define (invoke-installer implementation version)
   (let ((file (scheme-env:script-file (format "install/~a" implementation)))
 	(env (environment '(only (sagittarius) import library define-library))))

@@ -35,6 +35,7 @@
 	  scheme-env-home
 	  scheme-env-bin-directory
 	  scheme-env-sitelib-directory
+	  scheme-env-metainf-directory
 	  scheme-env-work-directory
 	  scheme-env-implentations-directory
 	  scheme-env-tmp-directory
@@ -158,6 +159,7 @@
 	(else +default-github-repository+)))
 (define (scheme-env-bin-directory) (build-path (scheme-env-home) "bin"))
 (define (scheme-env-sitelib-directory) (build-path (scheme-env-home) "sitelib"))
+(define (scheme-env-metainf-directory) (build-path (scheme-env-home) "metainf"))
 (define (scheme-env-work-directory) (build-path (scheme-env-home) "work"))
 (define (scheme-env-tmp-directory) (build-path (scheme-env-home) "tmp"))
 (define (scheme-env-implentations-directory)

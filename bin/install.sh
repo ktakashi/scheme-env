@@ -21,6 +21,7 @@ trap 'stop' SIGINT
 SCHEME_ENV_HOME=~/.scheme-env
 mkdir -p ${SCHEME_ENV_HOME}/bin
 mkdir -p ${SCHEME_ENV_HOME}/sitelib
+mkdir -p ${SCHEME_ENV_HOME}/metainf
 mkdir -p ${SCHEME_ENV_HOME}/scripts
 mkdir -p ${SCHEME_ENV_HOME}/implementations
 mkdir -p ${SCHEME_ENV_HOME}/work
