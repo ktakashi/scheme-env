@@ -74,6 +74,8 @@
 
 (define (uninstall meta-inf)
   (define (safe-delete file) (when (file-exists? file) (delete-file file)))
+  (define (safe-delete-directory file)
+    (when (file-exists? file) (delete-directory* file)))
   
   (let* ((inf (call-with-input-file meta-inf get-datum))
 	 (files (cond ((assq 'files inf) => cdr)
@@ -83,7 +85,7 @@
     (let-values (((files dirs)
 		  (partition (lambda (s) (eq? (car s) 'file)) files)))
       (for-each safe-delete (map cdr files))
-      (for-each safe-delete (map cdr dirs))
+      (for-each safe-delete-directory (map cdr dirs))
       (delete-file meta-inf))))
 
 (define (install meta-inf dest name source)
@@ -124,17 +126,17 @@
       ((implementation (#\i "implementation") #t #f)
        (delete?        (#\d "delete")         #f #f)
        . rest)
-    (when (or (null? rest) (null? (cdr rest))) (usage))
+    (when (or (null? rest)) (usage))
+    (when (and (not delete?) (null? (cdr rest))) (usage))
     (when implementation (check-implementation implementation))
     (let ((dest (if implementation
 		    (build-path sitelib implementation)
 		    sitelib))
-	  (name (car rest))
-	  (source (cadr rest)))
+	  (name (car rest)))
       (ensure-directory! dest)
       (ensure-directory! (scheme-env-metainf-directory))
       (let ((metainf (meta-inf name)))
       (if delete?
 	  (uninstall metainf)
-	  (install metainf dest name source))))))
+	  (install metainf dest name (source (cadr rest))))))))
     
