@@ -61,6 +61,7 @@
 
 (define (check-implementation implementation)
   (when (null? (find-files (scheme-env-bin-directory)
+			   :physical #f
 			   :pattern (string-append implementation "@.*")
 			   :recursive #f))
     (scheme-env:print "ERROR: unknown implementation " implementation)
