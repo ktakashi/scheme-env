@@ -138,5 +138,5 @@
       (let ((metainf (meta-inf name)))
       (if delete?
 	  (uninstall metainf)
-	  (install metainf dest name (source (cadr rest))))))))
+	  (install metainf dest name (cadr rest)))))))
     
