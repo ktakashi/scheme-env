@@ -70,6 +70,14 @@ $ scheme-env switch implementation
 ```
 If this command isn't run, then `sagitarius` is set to default.
 
+# Run specific implementation
+
+To run an installed implementation, you can run the following command
+
+```
+$ scheme-env run implementation
+```
+
 # Acknowledgement
 
 * Shiro Kawai for the installation script of Gauche
