@@ -42,6 +42,8 @@
 	  scheme-env-default-implementation
 	  scheme-env-host-implementation
 
+	  scheme-env:call-with-input-uri
+	  
 	  scheme-env:download
 	  scheme-env:script-file
 
@@ -91,6 +93,7 @@
 	  (rfc ftp)
 	  (rfc http)
 	  (rfc gzip)
+	  (rfc uri)
 	  (srfi :1)
 	  (srfi :26)
 	  (srfi :39))
@@ -168,6 +171,35 @@
   (build-path* (scheme-env-home) "bin" "default"))
 (define (scheme-env-host-implementation)
   (build-path* (scheme-env-home) "bin" "host-scheme"))
+
+(define (scheme-env:call-with-input-uri uri proc)
+  (define (http->binary-port specific secure?)
+    (define (->server host port)
+      (if port
+	  (string-append host ":" port)
+	  host))
+    (define (->path path query)
+      (if query
+	  (string-append path "?" query)
+	  path))
+    (define receiver (http-gzip-receiver (http-binary-receiver)))
+    (let*-values (((auth path query frag) (uri-decompose-hierarchical specific))
+		  ((ui host port) (uri-decompose-authority auth))
+		  ((s h b)
+		   (http-request 'GET (->server host port) (->path path query)
+				 :secure secure?
+				 :receiver receiver)))
+      (unless (eqv? (string-ref s 0) #\2)
+	(assertion-violation 'scheme-env:call-with-input-uri
+			     "HTTP status is not 2xx" uri))
+      (open-bytevector-input-port b)))
+  (let-values (((scheme specific) (uri-scheme&specific uri)))
+    (cond ((not scheme) (call-with-input-file uri proc :transcoder #f))
+	  ((string=? scheme "http") (proc (http->binary-port specific #f)))
+	  ((string=? scheme "https") (proc (http->binary-port specific #t)))
+	  (else (assertion-violation 'scheme-env:call-with-input-uri
+				     "Unsupported scheme" scheme)))))
+	   
 
 (define (scheme-env:download file)
   (define destination-directory (scheme-env-home))

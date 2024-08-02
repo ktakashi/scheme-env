@@ -34,6 +34,8 @@
 	(getopt)
 	(srfi :1 lists)
 	(srfi :19 time)
+	(srfi :39 parameters)
+	(rfc uri)
 	(util file)
 	(tools)
 	)
@@ -54,6 +56,12 @@
   (p)
   (p "-d,--delete: Removing the specified library")
   (p "   This option ignores $source")
+  (p)
+  (p "-c,--catalog: Catalog installation")
+  (p "   For this option, $name must be location of the catalog.")
+  (p "   This option ignores $source and `-i` option")
+  (p)
+  (p "`-c` and `-d` options can't be used together")
   (exit -1))
 
 (define (ensure-directory! dir)
@@ -121,23 +129,68 @@
 			      (nanosecond ,(time-second now)))
 		   (timestamp-str ,(date->string (time-utc->date now 0)))))))))
 
-(define (main args)
+(define (process name implementation source)
   (define sitelib (scheme-env-sitelib-directory))
+  (when implementation (check-implementation implementation))
+  (let ((dest (if implementation
+		  (build-path sitelib implementation)
+		  sitelib)))
+    (ensure-directory! dest)
+    (ensure-directory! (scheme-env-metainf-directory))
+    (let ((metainf (meta-inf name)))
+      (install metainf dest name source))))
+
+#|
+Catalog format
+(
+  (name "$name")
+  (implementation "$implementation") ;; optional
+  (source "$source-uri")
+  (archive "$source-archive-uri")
+)
+|#
+(define (call-with-catalog catalog proc)
+  (define (no-default key)
+    (assertion-violation 'scheme-env-catalog
+			 "Missing required catalog key" key))
+  (define (assoc-ref key lis :optional (default-value no-default))
+    (cond ((assq key lis) => cadr)
+	  (else (default-value key))))
+  (define (extract uri)
+    (define (detect-type uri)
+      (let*-values (((s u h p path q f) (uri-parse uri))
+		    ((ext) (path-extension path)))
+	(unless ext
+	  (assertion-violation 'scheme-env-catalog
+	   "archive must contain a URI with archive format" uri))
+	(string->symbol ext)))
+    (scheme-env:call-with-input-uri uri
+     (lambda (p)
+       (scheme-env:extract-archive-port p (detect-type uri)))))
+  (let ((info (scheme-env:call-with-input-uri catalog 
+	       (lambda (p) 
+		 (get-datum (transcoded-port p (native-transcoder)))))))
+    (let ((name (assoc-ref 'name info)))
+      (scheme-env:with-work-directory name "dummy"
+       (lambda (work-dir)
+	 (extract (assoc-ref 'archive info))
+	 (let ((d (scheme-env:find-extracted-directory ".")))
+	   (parameterize ((current-directory d))
+	     (proc name
+		   (assoc-ref 'implementation info (lambda _ #f))
+		   (assoc-ref 'source info)))))))))
+
+(define (main args)
   (with-args args
       ((implementation (#\i "implementation") #t #f)
        (delete?        (#\d "delete")         #f #f)
+       (catalog?       (#\c "catalog")        #f #f)
        . rest)
     (when (or (null? rest)) (usage))
-    (when (and (not delete?) (null? (cdr rest))) (usage))
-    (when implementation (check-implementation implementation))
-    (let ((dest (if implementation
-		    (build-path sitelib implementation)
-		    sitelib))
-	  (name (car rest)))
-      (ensure-directory! dest)
-      (ensure-directory! (scheme-env-metainf-directory))
-      (let ((metainf (meta-inf name)))
-      (if delete?
-	  (uninstall metainf)
-	  (install metainf dest name (cadr rest)))))))
+    (when (and delete? catalog?) (usage))
+    (cond (delete? (uninstall (meta-inf (car rest))))
+	  (catalog? (call-with-catalog (car rest) process))
+	  (else
+	   (when (null? (cdr rest)) (usage))
+	   (process (car rest) implementation (cadr rest))))))
     
