@@ -38,15 +38,14 @@
 	(srfi :13)
 	(srfi :39))
 
-(define-constant +butbucket+ "bitbucket.org")
-(define (get-latest-version)
-  (define version.txt
-    "/ktakashi/sagittarius-scheme/downloads/latest-version.txt")
-  (let-values (((s h b) (http-get +butbucket+ version.txt :secure #t)))
-    (string-trim-both b)))
-
+(define path-format
+  "/ktakashi/sagittarius-scheme/releases/download/v~a/sagittarius-~a.tar.gz")
 (define (install version)
-  (define real-version (or version (get-latest-version)))
+  (define (strip v) (substring v 1 (string-length v)))
+  (define real-version
+    (or version
+	(strip
+	 (scheme-env:github-latest-version "/ktakashi/sagittarius-scheme"))))
   (define install-prefix
     (build-path* (scheme-env-implentations-directory)
 		 "sagittarius" real-version))
@@ -55,20 +54,9 @@
 	      "/ktakashi/sagittarius-scheme/archive/master.zip")))
       (scheme-env:extract-archive-port (open-bytevector-input-port b) 'zip)))
   (define (download-version version)
-    (define path
-      (format "/ktakashi/sagittarius-scheme/downloads/sagittarius-~a.tar.gz"
-	      version))
-    (define file "sagittarius.tar.gz")
-    (let-values (((s h b)
-		  (http-get +butbucket+ path
-			    :receiver (http-file-receiver file)
-			    :secure #t)))
-      (unless (string=? s "200")
-	(assertion-violation 'sagittarius
-			     "Failed to download Sagittarius Scheme" s h))
-      (call-with-input-file file
-	(lambda (in) (scheme-env:extract-archive-port in 'tar.gz))
-	:transcoder #f)))
+    (let ((b (scheme-env:download-github-archive
+	      (format path-format version version))))
+      (scheme-env:extract-archive-port (open-bytevector-input-port b) 'tar.gz)))
   (define (download)
     (cond ((equal? real-version "head") (download-head))
 	  (else (download-version real-version))))
