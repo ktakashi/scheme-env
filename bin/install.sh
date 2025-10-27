@@ -179,13 +179,16 @@ check_downloader()
 }
 check_downloader
 
-REPOSITORY_URL=https://bitbucket.org/ktakashi/sagittarius-scheme/downloads
+REPOSITORY_URL=https://github.com/ktakashi/sagittarius-scheme/releases
 
-echo -n "Downloading latest-version.txt ... "
-${CURL} work/version ${REPOSITORY_URL}/latest-version.txt
+echo -n "Checking the latest Sagittarius version... "
+VERSION=$(curl -ksI "$REPOSITORY_URL/latest" \
+	      | grep -i '^Location:' \
+	      | tr '\r\n' ' ' \
+	      | sed "s|.ocation: ${REPOSITORY_URL}/tag/v||" \
+	      | sed 's/ //g')
 echo "done!"
 
-VERSION=`cat work/version`
 echo "Host Sagittarius version ... ${VERSION}"
 
 SAGITTARIUS_DIR=$SCHEME_ENV_HOME/implementations/sagittarius
@@ -259,7 +262,7 @@ install_host_scheme()
 {
     echo -n "Downloading Sagittarius ${VERSION} ... "
     LATEST_TAR=sagittarius-${VERSION}.tar.gz
-    ${CURL} work/${LATEST_TAR} ${REPOSITORY_URL}/${LATEST_TAR}
+    ${CURL} work/${LATEST_TAR} ${REPOSITORY_URL}/download/v${VERSION}/${LATEST_TAR}
     echo "done!"
 
     cd work
